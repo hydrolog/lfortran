@@ -2,11 +2,11 @@ name: Exhaustive checks
 
 on:
   #push:
-  #workflow_dispatch:
-  #  branches:
-  #    - main
-  #  tags:
-  #    - 'v*'
+  workflow_dispatch:
+    branches:
+      - main
+    tags:
+      - 'v*'
   #pull_request:
   workflow_dispatch:
     types: [labeled, unlabeled, synchronize]
