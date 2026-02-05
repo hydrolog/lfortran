@@ -1,7 +1,8 @@
 name: Exhaustive checks
 
 on:
-  push:
+  #push:
+  workflow_dispatch:
     branches:
       - main
     tags:
