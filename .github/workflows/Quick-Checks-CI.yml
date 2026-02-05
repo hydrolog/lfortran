@@ -2,10 +2,11 @@ name: Quick checks
 
 on:
   #push:
-  #  branches:
-  #    - main
-  #  tags:
-  #    - 'v*'
+  workflow_dispatch:
+    branches:
+      - main
+    tags:
+      - 'v*'
   #pull_request:
   workflow_dispatch:
     branches:
