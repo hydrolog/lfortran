@@ -3261,7 +3261,11 @@ public:
                             target_type = ASRUtils::make_Pointer_t_util(al, class_default->base.base.loc, target_type);
                         }
                         assoc_variable->m_type = target_type;
-                        assoc_variable->m_type_declaration = select_variable_m_type_declaration;
+                        ASR::symbol_t* type_decl = select_variable_m_type_declaration;
+                        if (type_decl) {
+                            type_decl = ASRUtils::import_struct_type(al, type_decl, current_scope);
+                        }
+                        assoc_variable->m_type_declaration = type_decl;
                         assoc_variable->m_dependencies = selector_variable_dependencies;
                         assoc_variable->n_dependencies = selector_variable_n_dependencies;
                     }
@@ -4345,8 +4349,17 @@ public:
                                         if (start_const && end_const) {
                                             // Both are constants: size = (end - start) / step + 1
                                             dim_b_int = (end_val - start_val) / step_val + 1;
-                                        } else if (ASRUtils::expr_equal(start, end)) {
-                                            // Same expression (e.g., x(i:i), x(i+1:i+1)): size is 1
+                                        } else if ((ASR::is_a<ASR::Var_t>(*start) ||
+                                                    ASR::is_a<ASR::IntegerConstant_t>(*start) ||
+                                                    ASR::is_a<ASR::IntegerBinOp_t>(*start) ||
+                                                    ASR::is_a<ASR::Cast_t>(*start)) &&
+                                                   (ASR::is_a<ASR::Var_t>(*end) ||
+                                                    ASR::is_a<ASR::IntegerConstant_t>(*end) ||
+                                                    ASR::is_a<ASR::IntegerBinOp_t>(*end) ||
+                                                    ASR::is_a<ASR::Cast_t>(*end)) &&
+                                                   ASRUtils::expr_equal(start, end)) {
+                                            // Same scalar index expression (e.g., x(i:i), x(i+1:i+1)):
+                                            // the resulting section has extent 1.
                                             dim_b_int = 1;
                                         }
                                     }
