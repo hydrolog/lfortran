@@ -63,14 +63,6 @@ jobs:
         run: |
           micromamba install m2-bison=3.0.4 m2-filesystem cmake=3.21.1 zstd-static=1.5.5 zlib=1.2.13
 
-      - name: Disable GateKeeper
-        if: contains(matrix.os, 'macos')
-        shell: bash -e -l {0}
-        run: |
-          run: sudo xattr -dr com.apple.quarantine ./
-          echo ""
-          echo "GateKeeper disabled"
-          
       - name: Install Linux / macOS Packages
         if: contains(matrix.os, 'ubuntu') || contains(matrix.os, 'macos')
         shell: bash -e -l {0}
