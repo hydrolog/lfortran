@@ -67,7 +67,7 @@ jobs:
         if: contains(matrix.os, 'macos')
         shell: bash -e -l {0}
         run: |
-          run: xattr -dr com.apple.quarantine ./
+          run: sudo xattr -dr com.apple.quarantine ./
           echo ""
           echo "GateKeeper disabled"
           
