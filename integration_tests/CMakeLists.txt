@@ -1522,6 +1522,8 @@ RUN(NAME modules_63 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc
 RUN(NAME modules_64 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc)
 RUN(NAME modules_65 LABELS gfortran llvm
         EXTRAFILES modules_65_base.f90 modules_65_child.f90 modules_65_worker.f90)
+RUN(NAME modules_66 LABELS gfortran llvm
+        EXTRAFILES modules_66_base.f90 modules_66_worker.f90)
 
 RUN(NAME associate_06 LABELS gfortran EXTRAFILES
         associate_06_module.f90)
@@ -1579,6 +1581,7 @@ RUN(NAME select_type_19 LABELS gfortran llvm)
 RUN(NAME select_type_20 LABELS gfortran llvm)
 RUN(NAME select_type_21 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc)
 RUN(NAME select_type_22 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc)
+RUN(NAME select_type_23 LABELS gfortran llvm EXTRA_ARGS --realloc-lhs-arrays)
 
 RUN(NAME program_02 LABELS gfortran llvm)
 RUN(NAME program_03 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc)
@@ -2332,6 +2335,11 @@ RUN(NAME class_95 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc)
 RUN(NAME class_96 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc)
 RUN(NAME class_97 LABELS gfortran llvm)
 RUN(NAME class_98 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc)
+RUN(NAME class_99 LABELS gfortran llvm)
+RUN(NAME class_100 LABELS gfortran llvm)
+RUN(NAME class_101 LABELS gfortran llvm)
+RUN(NAME class_102 LABELS gfortran llvm)
+RUN(NAME class_103 LABELS gfortran llvm)
 
 RUN(NAME class_procedure_args_01 LABELS gfortran llvm)
 
