@@ -1,0 +1,1 @@
+export LFORTRAN_LINKER=gcc

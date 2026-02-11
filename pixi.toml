@@ -11,10 +11,19 @@ start = "src/bin/lfortran"
 clean = "git clean -dfx -e '.pixi'"
 build1 = "./build0.sh && ./build1.sh"
 
+[target.win-64.tasks]
+build1 = "./build0.bat && ./build1.bat"
+
 [feature.test.tasks]
 ctest = "cmake --build . --parallel --target test"
 #tests = "./run_tests.py"
-integration_tests = "export LFORTRAN_LINKER=gcc && cd integration_tests && ./run_tests.py -j16"
+integration_tests = "cd integration_tests && ./run_tests.py -j16"
+
+[feature.test.target.linux-64.activation]
+scripts = ["setvars.sh"]
+
+[feature.test.target.win-64.activation]
+scripts = ["setvars.bat"]
 
 [dependencies]
 python = ">=3.12,<3.13"
