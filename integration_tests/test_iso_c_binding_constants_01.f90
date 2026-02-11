@@ -9,13 +9,11 @@ program test_iso_c_binding_constants_01
    if (c_long /= 8) error stop
    print *, c_long_long
    if (c_long_long /= 8) error stop
-
-   print *, c_signed_char_t 
-   if (c_signed_char_t /= 1) error stop
+   print *, c_signed_char 
+   if (c_signed_char /= 1) error stop
 
    print *, c_size_t
    if (c_size_t /= 8) error stop
-
    print *, c_int8_t
    if (c_int8_t /= 1) error stop
    print *, c_int16_t
@@ -25,29 +23,29 @@ program test_iso_c_binding_constants_01
    print *, c_int64_t
    if (c_int64_t /= 8) error stop
 
-   print *, c_intleast8_t
-   if (c_intleast8_t /= 1) error stop
-   print *, c_intleast16_t
-   if (c_intleast16_t /= 2) error stop
-   print *, c_intleast32_t
-   if (c_intleast32_t /= 4) error stop
-   print *, c_intleast64_t
-   if (c_intleast64_t /= 8) error stop
+   print *, c_int_least8_t
+   if (c_int_least8_t /= 1) error stop
+   print *, c_int_least16_t
+   if (c_int_least16_t /= 2) error stop
+   print *, c_int_least32_t
+   if (c_int_least32_t /= 4) error stop
+   print *, c_int_least64_t
+   if (c_int_least64_t /= 8) error stop
 
-   print *, c_intfast8_t
-   if (c_intfast8_t /= 1) error stop
-   print *, c_intfast16_t
-   if (c_intfast16_t /= 2) error stop
-   print *, c_intfast32_t
-   if (c_intfast32_t /= 4) error stop
-   print *, c_intfast64_t
-   if (c_intfast64_t /= 8) error stop
+   print *, c_int_fast8_t
+   if (c_int_fast8_t /= 1) error stop
+   print *, c_int_fast16_t
+   if (c_int_fast16_t /= 2) error stop
+   print *, c_int_fast32_t
+   if (c_int_fast32_t /= 4) error stop
+   print *, c_int_fast64_t
+   if (c_int_fast64_t /= 8) error stop
 
    print *, c_intmax_t
    if (c_intmax_t /= 8) error stop
    print *, c_intptr_t
-   if (c_intprt_t /= 8) error stop
-   print *, c_intmax_t
+   if (c_intptr_t /= 8) error stop
+   print *, c_ptrdiff_t
    if (c_ptrdiff_t /= 8) error stop
 
    print *, c_float
@@ -56,7 +54,6 @@ program test_iso_c_binding_constants_01
    if (c_double /= 8) error stop
    print *, c_long_double
    if (c_long_double /= -1) error stop   ! Currently unsupported
-
    print *, c_float_complex
    if (c_float_complex /= 4) error stop
    print *, c_double_complex
@@ -75,16 +72,16 @@ program test_iso_c_binding_constants_01
    print *, c_alert
    if (c_alert /= char(7)) error stop
    print *, c_backspace
-   if (c_alert /= char(8)) error stop
+   if (c_backspace /= char(8)) error stop
    print *, c_form_feed
-   if (c_alert /= char(12)) error stop
+   if (c_form_feed /= char(12)) error stop
    print *, c_new_line
    if (c_new_line /= char(10)) error stop
-   print *, c_alert
+   print *, c_carriage_return
    if (c_carriage_return /= char(13)) error stop
    print *, c_horizontal_tab
-   if (c_alert /= char(9)) error stop
+   if (c_horizontal_tab /= char(9)) error stop
    print *, c_vertical_tab
-   if (c_alert /= char(11)) error stop
+   if (c_vertical_tab /= char(11)) error stop
 
 end program test_iso_c_binding_constants_01
