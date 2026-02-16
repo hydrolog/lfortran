@@ -1,4 +1,4 @@
-module iso_c_const_01
+module iso_c_const_02
 
   implicit none
  
@@ -10,26 +10,25 @@ module iso_c_const_01
     integer ptr
   end type
 
-  ! values not given in some parameters, mockup error compile/link error
   integer, parameter :: c_int = 4, c_short = 2, c_long = 8, c_long_long = 8
-  integer, parameter :: c_signed_char , c_size_t ! shoud trigger error
+  integer, parameter :: c_signed_char = 1, c_size_t = 8
   integer, parameter :: c_int8_t = 1, c_int16_t = 2, c_int32_t = 4, c_int64_t = 8
-  integer, parameter :: c_int_least8_t , c_int_least16_t, c_int_least32_t, c_int_least64_t 
-  integer, parameter :: c_int_fast8_t, c_int_fast16 = 2, c_int_fast32_t, c_int_fast64_t 
-  integer, parameter :: c_intmax_t
-  integer, parameter :: c_intptr_t, c_ptrdiff_t
+  integer, parameter :: c_int_least8_t = 1, c_int_least16_t = 2, c_int_least32_t = 4, c_int_least64_t = 8
+  integer, parameter :: c_int_fast8_t = 1, c_int_fast16_t = 2, c_int_fast32_t = 4, c_int_fast64_t = 8
+  integer, parameter :: c_intmax_t = 8
+  integer, parameter :: c_intptr_t = 8, c_ptrdiff_t = 8
   integer, parameter :: c_float = 4, c_double = 8, c_float_complex = 4, c_double_complex = 8 
-  integer, parameter :: c_long_double, c_long_double_complex
+  integer, parameter :: c_long_double = -1, c_long_double_complex = -1
   integer, parameter :: c_bool = 1, c_char = 1
 
   character(len=1), parameter :: c_null_char = char(0)
-  character(len=1), parameter :: c_alert
-  character(len=1), parameter :: c_backspace
-  character(len=1), parameter :: c_form_feed
+  character(len=1), parameter :: c_alert = char(7)
+  character(len=1), parameter :: c_backspace = char(8)
+  character(len=1), parameter :: c_form_feed = char(12)
   character(len=1), parameter :: c_new_line = char(10)
-  character(len=1), parameter :: c_carriage_return
-  character(len=1), parameter :: c_horizontal_tab
-  character(len=1), parameter :: c_vertical_tab
+  character(len=1), parameter :: c_carriage_return = char(13)
+  character(len=1), parameter :: c_horizontal_tab = char(9)
+  character(len=1), parameter :: c_vertical_tab = char(11)
   
   type(c_ptr), parameter :: c_null_ptr = c_ptr(0)
   type(c_funptr), parameter :: c_null_funptr = c_funptr(0)
@@ -70,10 +69,10 @@ module iso_c_const_01
     end function
   end interface
 
-end module iso_c_const_01
+end module iso_c_const_02
 
-program test_iso_c_binding_constants_01
-  use iso_c_const_01
+program test_iso_c_binding_constants_02
+  use iso_c_const_02
 
   print *, "c_int = ", c_int
   if (c_int /= 4)  error stop
@@ -187,4 +186,4 @@ program test_iso_c_binding_constants_01
    print *, "c_vertical_tab = ", c_vertical_tab
    if (c_vertical_tab /= char(11)) error stop
     
-end program test_iso_c_binding_constants_01
+end program test_iso_c_binding_constants_02
