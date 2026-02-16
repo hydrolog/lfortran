@@ -12,14 +12,14 @@ module iso_c_const_01
 
   ! values not given in some parameters, mockup error compile/link error
   integer, parameter :: c_int = 4, c_short = 2, c_long = 8, c_long_long = 8
-  integer, parameter :: c_signed_char , c_size_t ! shoud trigger error
+  integer, parameter :: c_signed_char=0 , c_size_t=8 ! shoud trigger error
   integer, parameter :: c_int8_t = 1, c_int16_t = 2, c_int32_t = 4, c_int64_t = 8
-  integer, parameter :: c_int_least8_t , c_int_least16_t, c_int_least32_t, c_int_least64_t 
-  integer, parameter :: c_int_fast8_t, c_int_fast16 = 2, c_int_fast32_t, c_int_fast64_t 
-  integer, parameter :: c_intmax_t
-  integer, parameter :: c_intptr_t, c_ptrdiff_t
+  integer, parameter :: c_int_least8_t=0 , c_int_least16_t=0, c_int_least32_t=0, c_int_least64_t=0
+  integer, parameter :: c_int_fast8_t=0, c_int_fast16 = 0, c_int_fast32_t=0, c_int_fast64_t=0
+  integer, parameter :: c_intmax_t=0
+  integer, parameter :: c_intptr_t=0, c_ptrdiff_t=0
   integer, parameter :: c_float = 4, c_double = 8, c_float_complex = 4, c_double_complex = 8 
-  integer, parameter :: c_long_double, c_long_double_complex
+  integer, parameter :: c_long_double=0, c_long_double_complex=0
   integer, parameter :: c_bool = 1, c_char = 1
 
   character(len=1), parameter :: c_null_char = char(0)
