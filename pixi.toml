@@ -46,6 +46,7 @@ zstd-static = ">=1.5.7,<2"
 pandoc = ">=2.19.2,<3"
 kokkos = ">=4.7.1,<5"
 llvmdev = "==21.1.2"
+fprettify = ">=0.3.7,<0.4"
 
 [target.win-64.dependencies]
 xonsh = ">=0.22.3,<0.23"
