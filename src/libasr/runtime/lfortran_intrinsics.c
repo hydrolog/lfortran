@@ -15,6 +15,13 @@
 #include <stddef.h>  /* ptrdiff_t */
 
 #define PI 3.14159265358979323846
+// Enum for float format types to avoid string comparison
+typedef enum {
+    FLOAT_FORMAT_F64,     // for default 64-bit float formatting
+    FLOAT_FORMAT_F32,     // for default 32-bit float formatting
+    FLOAT_FORMAT_CUSTOM   // for custom format strings like "F10.5"
+} FloatFormatType;
+
 #if defined(_WIN32)
 #  include <winsock2.h>
 #  include <io.h>
@@ -368,21 +375,22 @@ void handle_logical(char* format, bool val, char** result) {
 static void format_float_fortran(char* result, float val);
 static void format_double_fortran(char* result, double val);
 
-void handle_float(char* format, double val, int scale, char** result, bool use_sign_plus, char rounding_mode) {
+void handle_float(FloatFormatType format_type, char* format, double val, int scale, char** result, bool use_sign_plus, char rounding_mode) {
     val = val * pow(10, scale); // scale the value
-    if (strcmp(format,"f-64") == 0) { //use c formatting.
+    if (format_type == FLOAT_FORMAT_F64) {
         char* float_str = (char*)malloc(64 * sizeof(char));
         format_double_fortran(float_str, val);
         *result = append_to_string(*result,float_str);
         free(float_str);
         return;
-    } else if(strcmp(format,"f-32") == 0){ //use c formatting.
+    } else if (format_type == FLOAT_FORMAT_F32) {
         char* float_str = (char*)malloc(64 * sizeof(char));
         format_float_fortran(float_str, (float)val);
         *result = append_to_string(*result,float_str);
         free(float_str);
         return;
     }
+    // FLOAT_FORMAT_CUSTOM: parse the format string
     int width = 0, decimal_digits = 0;
     long integer_part = (long)fabs(val);
     double decimal_part = fabs(val) - integer_part;
@@ -2546,7 +2554,15 @@ LFORTRAN_API char* _lcompilers_string_format_fortran(const char* format, int64_t
                     free(temp_buf);
                 } else if (tolower(value[0]) == 'f') {
                     char* temp_buf = (char*)malloc(1); temp_buf[0] = '\0';
-                    handle_float(value, double_val, scale, &temp_buf, is_SP_specifier, rounding_mode);
+                    FloatFormatType float_fmt_type;
+                    if (strcmp(value, "f-64") == 0) {
+                        float_fmt_type = FLOAT_FORMAT_F64;
+                    } else if (strcmp(value, "f-32") == 0) {
+                        float_fmt_type = FLOAT_FORMAT_F32;
+                    } else {
+                        float_fmt_type = FLOAT_FORMAT_CUSTOM;
+                    }
+                    handle_float(float_fmt_type, value, double_val, scale, &temp_buf, is_SP_specifier, rounding_mode);
                     int64_t temp_len = strlen(temp_buf);
                     result = append_to_string_NTI(result, result_len, temp_buf, temp_len);
                     result_len += temp_len;
@@ -2638,157 +2654,6 @@ static char* runtime_read_line(const char *filename, unsigned int line_no) {
     fclose(file);
     free(line);
     return NULL;
-}
-
-static size_t runtime_squiggle_len(const char *line, unsigned int column) {
-    size_t len = strlen(line);
-    if (len == 0) {
-        return 1;
-    }
-    if (column == 0) {
-        column = 1;
-    }
-    size_t start = column - 1;
-    if (start >= len) {
-        return 1;
-    }
-    if (isspace((unsigned char)line[start])) {
-        return 1;
-    }
-    size_t i = start;
-    while (i < len && !isspace((unsigned char)line[i])) {
-        i++;
-    }
-    if (i == start) {
-        return 1;
-    }
-    return i - start;
-}
-
-
-static void runtime_render_error(const char *formatted) {
-    const char *color_reset = _lfortran_use_runtime_colors ? "\033[0;0m" : "";
-    const char *color_bold = _lfortran_use_runtime_colors ? "\033[0;1m" : "";
-    const char *color_bold_red = _lfortran_use_runtime_colors ? "\033[0;31;1m" : "";
-    const char *color_bold_blue = _lfortran_use_runtime_colors ? "\033[0;34;1m" : "";
-
-    // Check if this is a STOP statement (not an error)
-    if (strncmp(formatted, "STOP", 4) == 0 || strncmp(formatted, "ERROR STOP", 10) == 0) {
-        fprintf(stderr, "%s", formatted);
-        fflush(stderr);
-        return;
-    }
-
-    // Try to parse "At line:col of file filename\nmessage" format
-    const char *prefix = "At ";
-    const char *file_marker = " of file ";
-
-    // If the message doesn't have location info, just print it with the runtime error prefix
-    if (strncmp(formatted, prefix, strlen(prefix)) != 0) {
-        fprintf(stderr, "%sruntime error%s%s: %s%s\n",
-                color_bold_red, color_reset, color_bold, formatted, color_reset);
-        fflush(stderr);
-        return;
-    }
-
-    // Parse line number
-    const char *p = formatted + strlen(prefix);
-    char *endptr = NULL;
-    unsigned long line = strtoul(p, &endptr, 10);
-    if (!endptr || *endptr != ':') {
-        // Parsing failed, just print the message
-        fprintf(stderr, "%sruntime error%s%s: %s%s\n",
-                color_bold_red, color_reset, color_bold, formatted, color_reset);
-        fflush(stderr);
-        return;
-    }
-
-    // Parse column number
-    p = endptr + 1;
-    unsigned long column = strtoul(p, &endptr, 10);
-    if (!endptr) {
-        fprintf(stderr, "%sruntime error%s%s: %s%s\n",
-                color_bold_red, color_reset, color_bold, formatted, color_reset);
-        fflush(stderr);
-        return;
-    }
-
-    // Parse filename
-    const char *file_pos = strstr(endptr, file_marker);
-    if (!file_pos) {
-        fprintf(stderr, "%sruntime error%s%s: %s%s\n",
-                color_bold_red, color_reset, color_bold, formatted, color_reset);
-        fflush(stderr);
-        return;
-    }
-
-    const char *filename_start = file_pos + strlen(file_marker);
-    const char *filename_end = strchr(filename_start, '\n');
-    if (!filename_end) {
-        fprintf(stderr, "%sruntime error%s%s: %s%s\n",
-                color_bold_red, color_reset, color_bold, formatted, color_reset);
-        fflush(stderr);
-        return;
-    }
-
-    size_t filename_len = (size_t)(filename_end - filename_start);
-    char *filename = (char*)malloc(filename_len + 1);
-    if (!filename) {
-        fprintf(stderr, "%sruntime error%s%s: %s%s\n",
-                color_bold_red, color_reset, color_bold, formatted, color_reset);
-        fflush(stderr);
-        return;
-    }
-    memcpy(filename, filename_start, filename_len);
-    filename[filename_len] = '\0';
-
-    const char *message = filename_end + 1;
-    if (*message == '\0') {
-        message = "Unknown error";
-    }
-
-    // Always print the error message
-    fprintf(stderr, "%sruntime error%s%s: %s%s\n",
-            color_bold_red, color_reset, color_bold, message, color_reset);
-
-    // If line is 0, we don't have a specific location - just show the message
-    if (line == 0) {
-        free(filename);
-        fflush(stderr);
-        return;
-    }
-
-    // Try to read the source line - if it fails, still show location without source
-    char *line_text = runtime_read_line(filename, (unsigned int)line);
-
-    int width = runtime_line_num_width((unsigned int)line);
-
-    // Show location info
-    fprintf(stderr, "%*s%s-->%s %s:%lu:%lu\n",
-            width, "", color_bold_blue, color_reset, filename, line, column);
-
-    // If we have the source line, show it with the squiggle
-    if (line_text) {
-        size_t squiggle_len = runtime_squiggle_len(line_text, (unsigned int)column);
-
-        fprintf(stderr, "%*s%s|%s\n", width + 1, "", color_bold_blue, color_reset);
-        fprintf(stderr, "%s%*lu |%s %s\n",
-                color_bold_blue, width, line, color_reset, line_text);
-        fprintf(stderr, "%*s%s|%s ", width + 1, "", color_bold_blue, color_reset);
-        if (column > 1) {
-            fprintf(stderr, "%*s", (int)(column - 1), "");
-        }
-        fprintf(stderr, "%s", color_bold_red);
-        for (size_t i = 0; i < squiggle_len; i++) {
-            fputc('^', stderr);
-        }
-        fprintf(stderr, " %s\n", color_reset);
-
-        free(line_text);
-    }
-
-    fflush(stderr);
-    free(filename);
 }
 
 static void print_label_span(const Span *span, bool is_primary, 
@@ -2905,7 +2770,9 @@ LFORTRAN_API void _lcompilers_runtime_error(Label *labels, uint32_t n_labels, co
         for (uint32_t j = 0; j < label->n_spans; j++) {
             print_label_span(&label->spans[j], label->primary, 
                            label->message, use_colors);
-            free(label->message);
+            if (label->message != NULL)
+                free(label->message);
+            label->message = NULL;
         }
     }
 
@@ -2938,32 +2805,13 @@ LFORTRAN_API char* _lcompilers_snprintf(const char* format, ...) {
     return formatted;
 }
 
-// TODO: after migrating to llvm_utils->generate_runtime_error2(), remove runtime_render_error() and revert this function to how it was before
 LFORTRAN_API void _lcompilers_print_error(const char* format, ...)
 {
     va_list args;
     va_start(args, format);
-    va_list args_copy;
-    va_copy(args_copy, args);
-    int needed = vsnprintf(NULL, 0, format, args_copy);
-    va_end(args_copy);
-    if (needed < 0) {
-        vfprintf(stderr, format, args);
-        fflush(stderr);
-        va_end(args);
-        return;
-    }
-    char *formatted = (char*)malloc((size_t)needed + 1);
-    if (!formatted) {
-        vfprintf(stderr, format, args);
-        fflush(stderr);
-        va_end(args);
-        return;
-    }
-    vsnprintf(formatted, (size_t)needed + 1, format, args);
+    vfprintf(stderr, format, args);
+    fflush(stderr);
     va_end(args);
-    runtime_render_error(formatted);
-    free(formatted);
 }
 
 LFORTRAN_API void _lfortran_complex_add_32(struct _lfortran_complex_32* a,
@@ -5409,6 +5257,21 @@ LFORTRAN_API void _lfortran_rewind(int32_t unit_num)
     rewind(filep);
 }
 
+LFORTRAN_API void _lfortran_endfile(int32_t unit_num)
+{
+    bool unit_file_bin;
+    FILE* filep = get_file_pointer_from_unit(unit_num, &unit_file_bin, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    if( filep == NULL ) {
+        printf("Specified UNIT %d in ENDFILE is not created or connected.\n", unit_num);
+        exit(1);
+    }
+    fflush(filep);
+    long pos = ftell(filep);
+    if (pos >= 0) {
+        (void)!ftruncate(fileno(filep), pos);
+    }
+}
+
 LFORTRAN_API void _lfortran_backspace(int32_t unit_num)
 {
     bool unit_file_bin;
@@ -5849,28 +5712,49 @@ LFORTRAN_API void _lfortran_read_logical(bool *p, int32_t unit_num, int32_t *ios
             *p = (temp != 0);
         }
     } else {
-        char token[100] = {0};
-        if (fscanf(filep, "%99s", token) != 1) {
+        int c;
+        while ((c = fgetc(filep)) != EOF && isspace(c)) {
+        }
+        
+        if (c == EOF) {
             if (iostat) { *iostat = feof(filep) ? -1 : 1; return; }
-            fprintf(stderr, "Error: Invalid logical input from file.\n");
+            fprintf(stderr, "Error: Invalid logical input from file (EOF).\n");
             exit(1);
         }
-
-        int len = strlen(token);
-        while (len > 0 && (token[len-1] == '\r' || token[len-1] == '\n')) {
-            token[len-1] = '\0';
-            len--;
+        
+        if (c == ',') {
+            while ((c = fgetc(filep)) != EOF && isspace(c)) {
+            }
+            if (c == EOF) {
+                if (iostat) { *iostat = feof(filep) ? -1 : 1; return; }
+                fprintf(stderr, "Error: Invalid logical input from file (EOF).\n");
+                exit(1);
+            }
         }
-
-        for (int i = 0; token[i]; ++i) {
-            token[i] = tolower((unsigned char) token[i]);
+        
+        if (c == ',' || c == '/') {
+            ungetc(c, filep);
+            return;
         }
-
-        if (strcmp(token, "t") == 0 || strcmp(token, "true") == 0 ||
-            strcmp(token, ".true.") == 0 || strcmp(token, ".true") == 0) {
+        
+        char token[100];
+        int len = 0;
+        
+        do {
+            if (len < 99) token[len++] = (char)tolower(c);
+            c = fgetc(filep);
+        } while (c != EOF && !isspace(c) && c != ',' && c != '/');
+        
+        token[len] = '\0';
+        if (c != EOF) ungetc(c, filep);
+        
+        // Check token
+        char *check_ptr = token;
+        if (token[0] == '.') check_ptr++;
+        
+        if (check_ptr[0] == 't') {
             *p = true;
-        } else if (strcmp(token, "f") == 0 || strcmp(token, "false") == 0 ||
-                   strcmp(token, ".false.") == 0 || strcmp(token, ".false") == 0) {
+        } else if (check_ptr[0] == 'f') {
             *p = false;
         } else {
             if (iostat) { *iostat = 1; return; }
@@ -6201,56 +6085,62 @@ LFORTRAN_API void _lfortran_read_char(char **p, int64_t p_len, int32_t unit_num,
         }
 
     } else {
+        int c;
+        while ((c = fgetc(filep)) != EOF && isspace(c)) {
+        }
+
+        if (c == EOF) {
+            if (iostat) { *iostat = -1; return; }
+            printf("Runtime error: End of file!\n");
+            exit(1);
+        }
+
+        if (c == ',') {
+            while ((c = fgetc(filep)) != EOF && isspace(c)) {
+            }
+            if (c == EOF) {
+                if (iostat) { *iostat = -1; return; }
+                printf("Runtime error: End of file!\n");
+                exit(1);
+            }
+        }
+
+        if (c == ',' || c == '/') {
+            ungetc(c, filep);
+            return;
+        }
+
         char *tmp_buffer = (char *)malloc((p_len + 1) * sizeof(char));
         if (!tmp_buffer) {
             if (iostat) { *iostat = 1; return; }
             printf("Memory allocation failed\n");
             exit(1);
         }
-        char c;
+
         size_t len = 0;
-        if (delim_value == 1) {
-            c = fgetc(filep);
-            if (c == EOF) {
-                free(tmp_buffer);
-                if (iostat) { *iostat = -1; return; }
-                printf("Runtime error: End of file!\n");
-                exit(1);
-            }
-            while ((c = fgetc(filep)) != EOF && c != '\'') {
-                if (len < (size_t)p_len) tmp_buffer[len++] = (char)c;
-            }
-            if (c == EOF) {
-                free(tmp_buffer);
-                if (iostat) { *iostat = -1; return; }
-                printf("Runtime error: End of file!\n");
-                exit(1);
-            }
-        } else if (delim_value == 2) {
-            c = fgetc(filep);
-            if (c == EOF) {
-                free(tmp_buffer);
-                if (iostat) { *iostat = -1; return; }
-                printf("Runtime error: End of file!\n");
-                exit(1);
-            }
-            while ((c = fgetc(filep)) != EOF && c != '"') {
-                if (len < (size_t)p_len) tmp_buffer[len++] = (char)c;
-            }
-            if (c == EOF) {
-                free(tmp_buffer);
-                if (iostat) { *iostat = -1; return; }
-                printf("Runtime error: End of file!\n");
-                exit(1);
+        if (c == '\'' || c == '"') {
+            char quote = c;
+            while (1) {
+                c = fgetc(filep);
+                if (c == EOF) break;
+                if (c == quote) {
+                    int next_c = fgetc(filep);
+                    if (next_c == quote) {
+                        if (len < (size_t)p_len) tmp_buffer[len++] = (char)quote;
+                    } else {
+                        if (next_c != EOF) ungetc(next_c, filep);
+                        break;
+                    }
+                } else {
+                    if (len < (size_t)p_len) tmp_buffer[len++] = (char)c;
+                }
             }
         } else {
-            if (fscanf(filep, "%s", tmp_buffer) != 1) {
-                free(tmp_buffer);
-                if (iostat) { *iostat = feof(filep) ? -1 : 1; return; }
-                printf("Runtime error: End of file!\n");
-                exit(1);
-            }
-            len = strlen(tmp_buffer);
+            do {
+                if (len < (size_t)p_len) tmp_buffer[len++] = (char)c;
+                c = fgetc(filep);
+            } while (c != EOF && !isspace(c) && c != ',' && c != '/');
+            if (c != EOF) ungetc(c, filep);
         }
 
         memcpy(*p, tmp_buffer, len);
@@ -6378,13 +6268,39 @@ LFORTRAN_API void _lfortran_read_float(float *p, int32_t unit_num, int32_t *iost
             exit(1);
         }
     } else {
-        // Read as string first to handle Fortran D exponent notation
-        char buffer[100];
-        if (fscanf(filep, "%99s", buffer) != 1) {
-            if (iostat) { *iostat = feof(filep) ? -1 : 1; return; }
-            fprintf(stderr, "Error: Invalid input for float from file.\n");
-            exit(1);
+        int c;
+        while ((c = fgetc(filep)) != EOF && isspace(c)) {}
+        
+        if (c == EOF) {
+             if (iostat) { *iostat = feof(filep) ? -1 : 1; return; }
+             fprintf(stderr, "Error: Invalid float input from file (EOF).\n");
+             exit(1);
         }
+        
+        if (c == ',') {
+             while ((c = fgetc(filep)) != EOF && isspace(c)) {}
+             if (c == EOF) {
+                  if (iostat) { *iostat = feof(filep) ? -1 : 1; return; }
+                  fprintf(stderr, "Error: Invalid float input from file (EOF).\n");
+                  exit(1);
+             }
+        }
+        
+        if (c == ',' || c == '/') {
+             ungetc(c, filep);
+             return; 
+        }
+        
+        char buffer[100];
+        int len = 0;
+        do {
+            if (len < 99) buffer[len++] = (char)c;
+            c = fgetc(filep);
+        } while (c != EOF && !isspace(c) && c != ',' && c != '/');
+        
+        buffer[len] = '\0';
+        if (c != EOF) ungetc(c, filep);
+
         if (!parse_fortran_float(buffer, p)) {
             if (iostat) { *iostat = 1; return; }
             fprintf(stderr, "Error: Invalid input from file.\n");
@@ -7844,6 +7760,20 @@ LFORTRAN_API void _lfortran_file_write(int32_t unit_num, int32_t* iostat, const 
         if(strcmp(format_data, "%s%s") == 0){
             char* end = va_arg(args, char*);
             int64_t end_len = va_arg(args, int64_t);
+
+            // In Fortran, each WRITE produces a record terminated by a
+            // newline.  When the formatted data ends with '\n' (e.g.
+            // from '/' edit descriptor or new_line() in data), the
+            // last trailing '\n' already acts as the record terminator,
+            // so remove it from the data and skip the end-of-record
+            // to avoid duplicate blank lines.
+            if (end_len == 1 && end[0] == '\n') {
+                if (str_len > 0 && str[str_len - 1] == '\n') {
+                    str_len--;
+                    end_len = 0;
+                    end = "";
+                }
+            }
 
             if(open_delim != '\0') {
                 fprintf(filep, "%c%.*s%c%.*s",
