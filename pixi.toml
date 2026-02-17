@@ -10,6 +10,8 @@ platforms = ["win-64", "linux-64"]
 start = "src/bin/lfortran"
 clean = "git clean -dfx -e '.pixi'"
 build1 = "./build0.sh && ./build1.sh"
+install = "cmake install --prefix ~/.local"
+
 
 [target.win-64.tasks]
 build1 = "./build0.bat && ./build1.bat"

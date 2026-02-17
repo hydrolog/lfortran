@@ -1,7 +1,11 @@
 module iso_c_const_02
-
   implicit none
- 
+
+  ! References:
+! ifx  https://www.intel.com/content/www/us/en/docs/fortran-compiler/developer-guide-reference/2025-3/named-constants-in-the-iso-c-binding-module.html
+! gfortran  https://gcc.gnu.org/onlinedocs/gfortran/ISO_005fC_005fBINDING.html
+! llvm https://github.com/llvm/llvm-project/blob/main/flang/module/iso_c_binding.f90
+
   type :: c_ptr
     integer ptr
   end type
@@ -11,7 +15,8 @@ module iso_c_const_02
   end type
 
   integer, parameter :: c_int = 4, c_short = 2, c_long = 8, c_long_long = 8
-  integer, parameter :: c_signed_char = 1, c_size_t = 8
+  integer, parameter :: c_signed_char = 1
+  integer, parameter :: c_size_t = 8
   integer, parameter :: c_int8_t = 1, c_int16_t = 2, c_int32_t = 4, c_int64_t = 8
   integer, parameter :: c_int_least8_t = 1, c_int_least16_t = 2, c_int_least32_t = 4, c_int_least64_t = 8
   integer, parameter :: c_int_fast8_t = 1, c_int_fast16_t = 2, c_int_fast32_t = 4, c_int_fast64_t = 8

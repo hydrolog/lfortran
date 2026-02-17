@@ -1,7 +1,11 @@
 module iso_c_const_01
-
   implicit none
- 
+
+! References:
+! ifx  https://www.intel.com/content/www/us/en/docs/fortran-compiler/developer-guide-reference/2025-3/named-constants-in-the-iso-c-binding-module.html
+! gfortran  https://gcc.gnu.org/onlinedocs/gfortran/ISO_005fC_005fBINDING.html
+! llvm https://github.com/llvm/llvm-project/blob/main/flang/module/iso_c_binding.f90
+
   type :: c_ptr
     integer ptr
   end type
@@ -10,26 +14,27 @@ module iso_c_const_01
     integer ptr
   end type
 
-  ! values not given in some parameters, mockup error compile/link error
+
   integer, parameter :: c_int = 4, c_short = 2, c_long = 8, c_long_long = 8
-  integer, parameter :: c_signed_char=0 , c_size_t=8 ! shoud trigger error
+  integer, parameter :: c_signed_char=-4 
+  integer, parameter :: c_size_t=8 
   integer, parameter :: c_int8_t = 1, c_int16_t = 2, c_int32_t = 4, c_int64_t = 8
-  integer, parameter :: c_int_least8_t=0 , c_int_least16_t=0, c_int_least32_t=0, c_int_least64_t=0
-  integer, parameter :: c_int_fast8_t=0, c_int_fast16 = 0, c_int_fast32_t=0, c_int_fast64_t=0
-  integer, parameter :: c_intmax_t=0
-  integer, parameter :: c_intptr_t=0, c_ptrdiff_t=0
+  integer, parameter :: c_int_least8_t = -4 , c_int_least16_t = -4, c_int_least32_t = -4, c_int_least64_t = -4
+  integer, parameter :: c_int_fast8_t = -4, c_int_fast16_t = -4, c_int_fast32_t = -4, c_int_fast64_t = -4
+  integer, parameter :: c_intmax_t = -4
+  integer, parameter :: c_intptr_t = -4, c_ptrdiff_t = -4
   integer, parameter :: c_float = 4, c_double = 8, c_float_complex = 4, c_double_complex = 8 
-  integer, parameter :: c_long_double=0, c_long_double_complex=0
+  integer, parameter :: c_long_double = -4, c_long_double_complex = -4
   integer, parameter :: c_bool = 1, c_char = 1
 
   character(len=1), parameter :: c_null_char = char(0)
-  character(len=1), parameter :: c_alert
-  character(len=1), parameter :: c_backspace
-  character(len=1), parameter :: c_form_feed
+  character(len=1), parameter :: c_alert = char(0)
+  character(len=1), parameter :: c_backspace = char(0)
+  character(len=1), parameter :: c_form_feed = char(0)
   character(len=1), parameter :: c_new_line = char(10)
-  character(len=1), parameter :: c_carriage_return
-  character(len=1), parameter :: c_horizontal_tab
-  character(len=1), parameter :: c_vertical_tab
+  character(len=1), parameter :: c_carriage_return = char(0)
+  character(len=1), parameter :: c_horizontal_tab = char(0)
+  character(len=1), parameter :: c_vertical_tab = char(0)
   
   type(c_ptr), parameter :: c_null_ptr = c_ptr(0)
   type(c_funptr), parameter :: c_null_funptr = c_funptr(0)
