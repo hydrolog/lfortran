@@ -1,14 +1,17 @@
 name: Check ISO_C_BIND CI
 
 on:
-  push:
+  workflow_dispatch:
     branches:
       - fix_iso_c_binding
-    tags:
-      - 'v*'
-  pull_request:
-    branches:
-      - fix_iso_c_binding
+#  push:
+#    branches:
+#     - fix_iso_c_binding
+#      tags:
+#        - 'v*'
+#  pull_request:
+#    branches:
+#      - fix_iso_c_binding
 
 # For a PR #7488 against main branch, the `group` will become: CI-{{ 7488 || github.sha }}
 # which eventually evaluates to: CI-7488 and 'sha' isn't used.
