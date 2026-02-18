@@ -6,6 +6,12 @@ echo "Running SHELL"
 
 echo "CONDA_PREFIX=$CONDA_PREFIX"
 llvm-config --components
+export LFORTRAN_LINKER=gcc
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH && 
+export LFORTRAN_CMAKE_GENERATOR=Ninja
+
+echo "LFORTRAN_LINKER=$LFORTRAN_LINKER"
+echo "LFORTRAN_CMAKE_GENERATOR=$LFORTRAN_CMAKE_GENERATOR"
 
 # Generate the `version` file
 bash ci/version.sh

@@ -14,7 +14,7 @@ clean = "git clean -dfx -e '.pixi'"
 [feature.test.tasks]
 ctest = "cmake --build . --parallel --target test"
 tests = "./run_tests.py"
-integration_tests = "cd integration_tests && ./run_tests.py -j16"
+integration_tests = "export LFORTRAN_LINKER=gcc && cd integration_tests && ./run_tests.py -j16"
 
 [feature.llvm7.target.linux-64.host-dependencies]
 llvmdev = "==7.0.1"
@@ -110,7 +110,8 @@ bison = "==3.4"
 m2-bison = "==3.0.4"
 
 [feature.build.tasks]
-build = "bash ./build1.sh"
+build = "./build0.sh && ./build1.sh"
+ci_build = "bash ci/build.sh" 
 
 [environments]
 llvm7 = {features = ["llvm7", "build"]}
@@ -129,3 +130,15 @@ llvm19 = {features = ["llvm19", "build"]}
 llvm20 = {features = ["llvm20", "build"]}
 llvm21 = {features = ["llvm21", "build"]}
 test = {features = ["test"]}
+
+[dependencies]
+re2c = ">=3.1,<5"
+
+[target.linux-64.dependencies]
+bison = ">=3.4,<4"
+
+[target.win-64.dependencies]
+m2-bison = ">=3.0.4,<4"
+
+[target.osx-arm64.dependencies]
+bison = ">=3.4,<4"
