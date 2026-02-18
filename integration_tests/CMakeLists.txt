@@ -2418,8 +2418,8 @@ RUN(NAME kwargs_02 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc)
 
 RUN(NAME test_iso_c_binding LABELS gfortran llvm llvm_wasm llvm_wasm_emcc wasm)
 RUN(NAME test_iso_c_binding_constants LABELS gfortran llvm llvm_wasm llvm_wasm_emcc wasm)
-RUN(NAME test_iso_c_binding_constants_01 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc wasm)
-set_tests_properties(test_iso_c_binding_constants_01 PROPERTIES WILL_FAIL TRUE)
+RUN(FAIL NAME test_iso_c_binding_constants_01 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc wasm)
+# set_tests_properties(test_iso_c_binding_constants_01 PROPERTIES WILL_FAIL TRUE)
 RUN(NAME test_iso_c_binding_constants_02 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc wasm)
 
 
