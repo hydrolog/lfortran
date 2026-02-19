@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     branches:
       - fix_iso_c_binding
-#  push:
-#    branches:
-#     - fix_iso_c_binding
-#      tags:
-#        - 'v*'
+  push:
+    branches:
+      - fix_iso_c_binding
+    tags:
+      - 'v*'
 #  pull_request:
 #    branches:
 #      - fix_iso_c_binding
