@@ -2,7 +2,7 @@
 channels = ["conda-forge"]
 name = "lfortran"
 platforms = ["linux-64"]
-version = "0.60,0"
+version = "0.60.0"
 
 [tasks]
 
