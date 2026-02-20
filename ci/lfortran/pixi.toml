@@ -2,7 +2,7 @@
 channels = ["conda-forge"]
 name = "lfortran"
 platforms = ["linux-64","win-64", "osx-64", "osx-arm64"]
-version = "0.60.0-285-g879c4733a-dirty"
+version = "0.60.0-288-g16ab73a3d-dirty"
 description = "Modern interactive LLVM-based Fortran compiler"
 
 [tasks]
