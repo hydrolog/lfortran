@@ -21,10 +21,10 @@ build:
 
 requirements:
   build:
-    - ${{ compiler('c') }}
-    - ${{ stdlib("c") }}
-    - ${{ compiler('cxx') }}
-    - ${{ stdlib("c") }}
+   # - ${{ compiler('c') }}
+   # - ${{ stdlib("c") }}
+   # - ${{ compiler('cxx') }}
+   # - ${{ stdlib("c") }}
     - cmake =3.29.6
     - if: unix
       then: make =4.4.1

@@ -3,6 +3,9 @@
 set -e
 set -x
 
+export LIBUNWIND_LIBRARY=$CONDA_PREFIX/lib
+export LIBUNWIND_INCLUDE_DIR=$CONDA_PREFIX/include
+
 cmake \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_FLAGS_RELEASE="-Wall -Wextra -O3 -funroll-loops -DNDEBUG" \
