@@ -9,7 +9,7 @@ package:
   version: ${{ version }}
 
 source:
-  - path: . 
+  - branch: fix_iso_c_binding 
     # This must be in sync with build.sh:
     git: https://github.com/emscripten-core/emsdk.git
     rev: 3.1.59
