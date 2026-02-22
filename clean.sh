@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 set -e
-set -x
 
 if [[ $1 == "" ]]; then
   echo "Clean all"

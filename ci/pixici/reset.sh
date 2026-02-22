@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
 
 echo "Running SHELL"
 echo "CONDA_PREFIX=$CONDA_PREFIX"
