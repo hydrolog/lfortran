@@ -19,5 +19,5 @@ curl --fail -L \
   -H "Authorization: Bearer $GITHUB_TOKEN" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   -H "Content-Type: application/octet-stream" \
-  "https://uploads.github.com/repos/lfortran/lfortran/releases/$RELEASE_ID/assets?name=lfortran-${lfortran_version}.tar.gz" \
+  "https://uploads.github.com/repos/hydrolog/lfortran/releases/$RELEASE_ID/assets?name=lfortran-${lfortran_version}.tar.gz" \
   --data-binary "@lfortran-${lfortran_version}.tar.gz"

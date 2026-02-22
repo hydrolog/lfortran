@@ -39,7 +39,8 @@ zstd-static = "1.5.7.*"
 llvmdev = "==21.1.2"
 
 [feature.unix.target.linux-64.tasks]
-ci = { cmd = "./ci/build.sh", cwd = "../../" }
+clean = "git clean -dfx -e '.pixi'"
+ci = { cmd = "./ci/build.sh", cwd = "../../", depends-on = "clean" }
 
 [feature.windows]
 platforms = ["win-64"]
