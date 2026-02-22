@@ -50,6 +50,8 @@ pandoc = ">=2.19.2,<3"
 kokkos = ">=4.7.1,<5"
 llvmdev = "==21.1.2"
 clang = ">=21.1.2,<22"
+c-compiler = ">=1.11.0,<2"
+cxx-compiler = ">=1.11.0,<2"
 
 [feature.envwin.target.win-64.dependencies]
 xonsh = ">=0.22.3,<0.23"
