@@ -9,11 +9,12 @@ package:
   version: ${{ version }}
 
 source:
-  - branch: fix_iso_c_binding 
+  path: .
+ #   branch: fix_iso_c_binding 
     # This must be in sync with build.sh:
-    git: https://github.com/emscripten-core/emsdk.git
-    rev: 3.1.59
-    target_directory: emsdk
+#    git: https://github.com/emscripten-core/emsdk.git
+ #   rev: 3.1.59
+ #   target_directory: emsdk
 
 build:
   number: 0
@@ -32,7 +33,7 @@ requirements:
     - if: build_platform != target_platform
       then: xeus-zmq =3.0.0
     - if: build_platform != target_platform
-      then: llvmdev =21.1.2
+      then: llvmdev =19.1.1
     - if: build_platform != target_platform
       then: nlohmann_json =3.11.3
     - if: build_platform != target_platform
@@ -43,7 +44,7 @@ requirements:
   host:
     - xeus =5.1.0
     - xeus-zmq =3.0.0
-    - llvmdev =19.1.1
+    - llvmdev =21.1.2
     - if: linux
       then: libunwind =1.7.2
     - nlohmann_json =3.11.3
@@ -52,6 +53,8 @@ requirements:
   run:
     # xeus breaks abi compatibility in patch versions even though
     # run_exports say otherwise in https://github.com/conda-forge/xeus-feedstock/blob/0896038be810da2944ebcb612e22886815ea691e/recipe/meta.yaml#L18
+    - if: linux
+      then: libunwind =1.7.2
     - if: win
       then: ${{ pin_compatible("xeus", upper_bound="x.x.x") }}
     - if: win
@@ -89,4 +92,5 @@ extra:
   recipe-maintainers:
     - certik
     - Shaikh-Ubaid
+    - nilocj
 
