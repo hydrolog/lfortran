@@ -85,7 +85,7 @@ about:
     compile to binaries with the goal to run user’s code on modern
     architectures such as multi-core CPUs and GPUs.
   homepage: https://lfortran.org
-  repository: https://github.com/lfortran/lfortran
+  repository: https://github.com/hydrolog/lfortran
   documentation: https://docs.lfortran.org/
 
 extra:
