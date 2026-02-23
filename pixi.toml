@@ -13,7 +13,7 @@ build0 = { cmd = "bash build0.sh", cwd = "." }
 build1 = { cmd = "bash build1.sh", depends-on = "build0" }
 ci = { cmd = "bash ci/build.sh", cwd = ".", depends-on = "clean"  }
 build_release = { cmd = "bash build_release.sh", cwd = ".", depends-on = "clean" }
-gencondapkg = { cmd = "rattler-build build -r recipe.yaml", cwd = "." }
+gencondapkg = { cmd = "rattler-build build -r recipe.yaml" }
 
 [feature.envwin.target.win-64.tasks]
 build1 = "./build0.bat && ./build1.bat"
@@ -21,7 +21,14 @@ build1 = "./build0.bat && ./build1.bat"
 [feature.envtest.tasks]
 ctest = "cmake --build . --parallel --target test"
 #tests = "./run_tests.py"
-integration_tests = { cmd = "./run_tests.py -j16", cwd = "integration_tests"}
+tllvm1 = { cmd = "./run_tests.py -j16", cwd = "integration_tests"}
+tgfortran = { cmd = "./run_tests.py -b gfortran", cwd = "integrations_tests" }
+tllvm2 = {cmd = ["./run_tests.py -b llvm2 llvm_rtlib llvm_nopragma",
+                "&&", 
+                "./run_tests.py -b llvm2 llvm_rtlib llvm_nopragma -f"], cwd = "integration_tests" }
+tcpp =  { cmd = "./run_tests.py -b cpp c c_nopragma -f", cwd = "integration_tests"}
+twasm = { cmd = "./run_tests.py -b wasm", cwd = "integration_tests"}
+tomp = { cmd = "./run_tests.py -b llvm_omp", cwd = "integration_tests"}
 
 [target.linux-64.activation]
 scripts = ["setvars.sh"]
@@ -52,6 +59,7 @@ llvmdev = "==21.1.2"
 clang = ">=21.1.2,<22"
 c-compiler = ">=1.11.0,<2"
 cxx-compiler = ">=1.11.0,<2"
+libxml2 = ">=2.15.1,<3"
 
 [feature.envwin.target.win-64.dependencies]
 xonsh = ">=0.22.3,<0.23"
