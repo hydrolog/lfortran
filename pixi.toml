@@ -14,7 +14,7 @@ clean = "git clean -dfx -e '.pixi'"
 [feature.test.tasks]
 ctest = "cmake --build . --parallel --target test"
 tests = "./run_tests.py"
-integration_tests = "export LFORTRAN_LINKER=gcc && cd integration_tests && ./run_tests.py -j16"
+integration_tests = "integration_tests && ./run_tests.py -j16"
 
 [feature.llvm7.target.linux-64.host-dependencies]
 llvmdev = "==7.0.1"
