@@ -13,7 +13,7 @@ build0 = { cmd = "bash build0.sh", cwd = "." }
 build1 = { cmd = "bash build1.sh", depends-on = "build0" }
 ci = { cmd = "bash ci/build.sh", cwd = ".", depends-on = "clean"  }
 build_release = { cmd = "bash build_release.sh", cwd = ".", depends-on = "clean" }
-gencondapkg = { cmd = "rattler-build build -r recipe.yaml" }
+#gencondapkg = { cmd = "rattler-build build -r recipe.yaml" }
 
 [feature.envwin.target.win-64.tasks]
 build1 = "./build0.bat && ./build1.bat"
@@ -60,6 +60,7 @@ clang = ">=21.1.2,<22"
 c-compiler = ">=1.11.0,<2"
 cxx-compiler = ">=1.11.0,<2"
 libxml2 = ">=2.15.1,<3"
+emsdk = ">=3.1.46,<4"
 
 [feature.envwin.target.win-64.dependencies]
 xonsh = ">=0.22.3,<0.23"

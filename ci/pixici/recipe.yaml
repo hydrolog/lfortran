@@ -9,7 +9,8 @@ package:
   version: ${{ version }}
 
 source:
-  - path: . 
+  - url: https://github.com/lfortran/lfortran/releases/download/v${{ version }}/${{ name }}-${{ version }}.tar.gz
+    sha256: 6cd36a260fd24f7bba8817d1d21a8eb29e5bebbea4241bf7ce71572cd3c8f7ba
     # This must be in sync with build.sh:
     git: https://github.com/emscripten-core/emsdk.git
     rev: 3.1.59
@@ -32,7 +33,7 @@ requirements:
     - if: build_platform != target_platform
       then: xeus-zmq =3.0.0
     - if: build_platform != target_platform
-      then: llvmdev =21.1.2
+      then: llvmdev =19.1.1
     - if: build_platform != target_platform
       then: nlohmann_json =3.11.3
     - if: build_platform != target_platform
@@ -48,7 +49,7 @@ requirements:
       then: libunwind =1.7.2
     - nlohmann_json =3.11.3
     - zlib
-    - zstd-static =1.5.7
+    - zstd-static =1.5.6
   run:
     # xeus breaks abi compatibility in patch versions even though
     # run_exports say otherwise in https://github.com/conda-forge/xeus-feedstock/blob/0896038be810da2944ebcb612e22886815ea691e/recipe/meta.yaml#L18
