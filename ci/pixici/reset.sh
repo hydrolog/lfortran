@@ -3,34 +3,48 @@
 set -e
 
 echo "Running SHELL"
-echo "CONDA_PREFIX=$CONDA_PREFIX"
 
 rm -rf ../lfortran/pixi.lock && rm -rf ../lfortran/.pixi
 cp ../lfortran/pixi.toml pixi.toml.bak && cp setvars.* ../lfortran
 cp pixi.toml.blank ../lfortran/pixi.toml && cd ../lfortran
 
-pixi import ../environment_linux.yml -p linux-64 -f unix
-pixi import ../../environment_win.yml -p win-64 -f windows
+pixi import ../environment_linux.yml -p linux-64 -f envx
+pixi import ../../environment_win.yml -p win-64 -f envw
 
-pixi task add ci "./ci/build.sh" --cwd ../../ -p linux-64 -f unix
+pixi task add clean "bash clean.sh" --cwd ../../ -p linux-64 -f envx
+pixi task add ci "bash ./ci/build.sh" --cwd ../../ -p linux-64 -f envx --depends-on clean
 
-# Linux dependencies
-pixi remove zstd-static -f unix -p linux-64 
-pixi remove llvmdev -f unix -p linux-64
-pixi add -p linux-64 -f unix libunwind=1.7.2
-pixi add -p linux-64 -f unix zstd-static=1.5.7
-pixi add -p linux-64 -f unix cmake=3.29.1 
-pixi add -p linux-64 -f unix llvmdev==21.1.2
+pixi task add clean "xonsh clean.sh" --cwd ../../ -p win-64 -f envw
+pixi task add ci "xonsh ./ci/build.sh" --cwd ../../ -p win-64 -f envw --depends-on clean
 
+# Unix dependencies
+pixi remove zstd-static -f envx -p linux-64
+pixi remove llvmdev -f envx -p linux-64
+pixi remove numpy -f envx -p linux-64
+
+pixi add -p linux-64 -f envx python=3.13
+pixi add -p linux-64 -f envx numpy
+pixi add -p linux-64 -f envx gcc=15.2 gxx=15.2
+pixi add -p linux-64 -f envx libunwind=1.7.2
+pixi add -p linux-64 -f envx zstd-static=1.5.7
+pixi add -p linux-64 -f envx cmake==4.2.3
+pixi add -p linux-64 -f envx llvmdev==21.1.8
+:
 # Windows dependencies
-pixi remove llvmdev -f windows -p win-64
-pixi add -p win-64 -f windows cmake=4.2.1
-pixi add -p win-64 -f windows llvmdev==21.1.2
+pixi remove numpy -f envw -p win-64
+pixi remove llvmdev -f envw -p win-64
+pixi remove xonsh -f envw -p win-64
+
+pixi add -p win-64 -f envw python=3.13
+pixi add -p win-64 -f envw xonsh
+pixi add -p win-64 -f envw numpy
+pixi add -p win-64 -f envw clang==21.1.8
+pixi add -p win-64 -f envw cmake=4.2.3
+pixi add -p win-64 -f envw llvmdev==21.1.8
 
 pixi workspace description set "Modern interactive LLVM-based Fortran compiler"
-pixi workspace platform add osx-64 osx-arm64
-../version.sh && pixi workspace version set $(cat version)
+version=$(git describe --tags --abbrev=0) && pixi workspace version set "${version:1}"
 
 pixi update
 
-echo "Change to directory $(pwd) and execute: <pixi run -e unix ci> "
+echo "Change to directory $(pwd) and execute: <pixi run -e envx ci> "

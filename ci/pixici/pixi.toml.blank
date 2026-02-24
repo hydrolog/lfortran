@@ -8,13 +8,14 @@ version = "0.60.0"
 
 [dependencies]
 
-[feature.unix.target.linux-64.activation]
+[feature.envx.target.linux-64.activation]
 scripts = ["setvars.sh"]
 
-[feature.windows.target.win-64.activation]
+[feature.envw.target.win-64.activation]
 scripts = ["setvars.bat"]
 
 [environments]
-unix = { features = ["unix"], no-default-feature = true }
-windows = { features = ["windows"], no-default-feature = true }
+envx = { features = ["envx"] }
+envw = { features = ["envw"] }
+
 
