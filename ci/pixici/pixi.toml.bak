@@ -60,6 +60,7 @@ nlohmann_json = ">=3.12.0,<4"
 jupyter_kernel_test = ">=0.7.0,<0.8"
 xonsh = ">=0.22.4,<0.23"
 re2c = ">=4.4,<5"
+re2c = ">=4.4,<5"
 numpy = ">=2.4.2,<3"
 ninja = ">=1.13.2,<2"
 m2-bison = ">=3.0.4,<4"
@@ -72,6 +73,8 @@ clean = { cmd = "xonsh clean.sh", cwd = "../../" }
 ci = { cmd = "xonsh ./ci/build.sh", depends-on = ["clean"], cwd = "../../" }
 
 [environments]
+envx = { features = ["envx"], no-default-feature = true }
+envw = { features = ["envw"], no-default-feature = true }
 envx = { features = ["envx"], no-default-feature = true }
 envw = { features = ["envw"], no-default-feature = true }
 

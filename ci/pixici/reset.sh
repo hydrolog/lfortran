@@ -8,6 +8,10 @@ rm -rf ../lf/pixi.lock && rm -rf ../lf/.pixi
 cp ../lf/pixi.toml pixi.toml.bak
 cp ./setvars.* ../lf
 cp ./pixi.toml.blank ../lf/pixi.toml && cd ../lf
+rm -rf ../lf/pixi.lock && rm -rf ../lf/.pixi
+cp ../lf/pixi.toml pixi.toml.bak
+cp ./setvars.* ../lf
+cp ./pixi.toml.blank ../lf/pixi.toml && cd ../lf
 
 pixi import ../environment_linux.yml -p linux-64 -f envx
 pixi import ../../environment_win.yml -p win-64 -f envw
