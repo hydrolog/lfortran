@@ -6,11 +6,7 @@ echo "Running SHELL"
 
 rm -rf ../lf/pixi.lock && rm -rf ../lf/.pixi
 cp ../lf/pixi.toml pixi.toml.bak
-cp ./setvars.* ../lf
-cp ./pixi.toml.blank ../lf/pixi.toml && cd ../lf
-rm -rf ../lf/pixi.lock && rm -rf ../lf/.pixi
-cp ../lf/pixi.toml pixi.toml.bak
-cp ./setvars.* ../lf
+cp ./setvars.* ../lf/
 cp ./pixi.toml.blank ../lf/pixi.toml && cd ../lf
 
 pixi import ../environment_linux.yml -p linux-64 -f envx
@@ -26,6 +22,7 @@ pixi task add ci "xonsh ./ci/build.sh" --cwd ../../ -p win-64 -f envw --depends-
 pixi remove -p linux-64 -f envx llvmdev
 pixi upgrade -f envx
 pixi add -p linux-64 -f envx gcc gxx
+pixi add -p linux-64 -f envx libunwind
 pixi upgrade -f envx
 pixi add -p linux-64 -f envx llvmdev==21.1.8
 pixi add -p linux-64 -f envx python==3.13.12
