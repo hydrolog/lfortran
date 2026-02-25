@@ -69,7 +69,7 @@ m2-bison = ">=3.0,<3.5"
 [target.linux-64.dependencies]
 bison = ">=3.4,<3.5"
 m4 = ">=1.4.21,<2"
-libunwind = "==1.7.2"
+libunwind = ">=1.8.3,<2"
 zstd-static = ">=1.5.7,<2"
 
 [feature.envdocs.pypi-dependencies]

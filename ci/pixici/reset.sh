@@ -4,9 +4,10 @@ set -e
 
 echo "Running SHELL"
 
-rm -rf ../lfortran/pixi.lock && rm -rf ../lfortran/.pixi
-cp ../lfortran/pixi.toml pixi.toml.bak && cp setvars.* ../lfortran
-cp pixi.toml.blank ../lfortran/pixi.toml && cd ../lfortran
+rm -rf ../lf/pixi.lock && rm -rf ../lf/.pixi
+cp ../lf/pixi.toml pixi.toml.bak
+cp ./setvars.* ../lf
+cp ./pixi.toml.blank ../lf/pixi.toml && cd ../lf
 
 pixi import ../environment_linux.yml -p linux-64 -f envx
 pixi import ../../environment_win.yml -p win-64 -f envw
@@ -18,29 +19,19 @@ pixi task add clean "xonsh clean.sh" --cwd ../../ -p win-64 -f envw
 pixi task add ci "xonsh ./ci/build.sh" --cwd ../../ -p win-64 -f envw --depends-on clean
 
 # Unix dependencies
-pixi remove zstd-static -f envx -p linux-64
-pixi remove llvmdev -f envx -p linux-64
-pixi remove numpy -f envx -p linux-64
-
-pixi add -p linux-64 -f envx python=3.13
-pixi add -p linux-64 -f envx numpy
-pixi add -p linux-64 -f envx gcc=15.2 gxx=15.2
-pixi add -p linux-64 -f envx libunwind=1.7.2
-pixi add -p linux-64 -f envx zstd-static=1.5.7
-pixi add -p linux-64 -f envx cmake==4.2.3
+pixi remove -p linux-64 -f envx llvmdev
+pixi remove -p linux-64 -f envx zstd-static
+pixi add -p linux-64 -f envx zstd-static
 pixi add -p linux-64 -f envx llvmdev==21.1.8
-:
-# Windows dependencies
-pixi remove numpy -f envw -p win-64
-pixi remove llvmdev -f envw -p win-64
-pixi remove xonsh -f envw -p win-64
+pixi upgrade -f envx
+pixi add -p linux-64 -f envx python==3.13.12
 
-pixi add -p win-64 -f envw python=3.13
-pixi add -p win-64 -f envw xonsh
-pixi add -p win-64 -f envw numpy
-pixi add -p win-64 -f envw clang==21.1.8
-pixi add -p win-64 -f envw cmake=4.2.3
+# Windows dependencies
+pixi remove -p win-64 -f envw llvmdev
 pixi add -p win-64 -f envw llvmdev==21.1.8
+pixi add -p win-64 -f envw pandoc
+pixi upgrade -f envw
+pixi add -p win-64 -f envw python==3.13.12
 
 pixi workspace description set "Modern interactive LLVM-based Fortran compiler"
 version=$(git describe --tags --abbrev=0) && pixi workspace version set "${version:1}"

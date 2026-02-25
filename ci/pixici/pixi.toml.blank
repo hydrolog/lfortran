@@ -15,7 +15,7 @@ scripts = ["setvars.sh"]
 scripts = ["setvars.bat"]
 
 [environments]
-envx = { features = ["envx"] }
-envw = { features = ["envw"] }
+envx = { features = ["envx"], no-default-feature = true }
+envw = { features = ["envw"], no-default-feature = true }
 
 
