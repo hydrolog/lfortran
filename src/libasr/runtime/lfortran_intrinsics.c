@@ -1,3 +1,6 @@
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +16,9 @@
 #include <limits.h>
 #include <stdint.h>
 #include <stddef.h>  /* ptrdiff_t */
+#if !defined(COMPILE_TO_WASM)
+#include <fenv.h>
+#endif
 
 #define PI 3.14159265358979323846
 // Enum for float format types to avoid string comparison
@@ -100,6 +106,7 @@ static int _lfortran_use_runtime_colors = 0;  // disabled by default
 #ifdef HAVE_LFORTRAN_LINK
 // For dl_iterate_phdr() functionality
 #  include <link.h>
+#ifndef _GNU_SOURCE
 struct dl_phdr_info {
     ElfW(Addr) dlpi_addr;
     const char *dlpi_name;
@@ -108,6 +115,7 @@ struct dl_phdr_info {
 };
 extern int dl_iterate_phdr (int (*__callback) (struct dl_phdr_info *,
     size_t, void *), void *__data);
+#endif
 #endif
 
 #ifdef HAVE_LFORTRAN_UNWIND
@@ -376,14 +384,15 @@ static void format_float_fortran(char* result, float val);
 static void format_double_fortran(char* result, double val);
 
 void handle_float(FloatFormatType format_type, char* format, double val, int scale, char** result, bool use_sign_plus, char rounding_mode) {
-    val = val * pow(10, scale); // scale the value
     if (format_type == FLOAT_FORMAT_F64) {
+        val = val * pow(10, scale);
         char* float_str = (char*)malloc(64 * sizeof(char));
         format_double_fortran(float_str, val);
         *result = append_to_string(*result,float_str);
         free(float_str);
         return;
     } else if (format_type == FLOAT_FORMAT_F32) {
+        val = val * pow(10, scale);
         char* float_str = (char*)malloc(64 * sizeof(char));
         format_float_fortran(float_str, (float)val);
         *result = append_to_string(*result,float_str);
@@ -391,6 +400,41 @@ void handle_float(FloatFormatType format_type, char* format, double val, int sca
         return;
     }
     // FLOAT_FORMAT_CUSTOM: parse the format string
+
+    if (isnan(val) || isinf(val)) {
+        int width = 0;
+        char* dot_pos = strchr(format, '.');
+        if (dot_pos != NULL) {
+            width = atoi(format + 1);
+        }
+        const char* special_str;
+        if (isnan(val)) {
+            special_str = "NaN";
+        } else if (val < 0) {
+            special_str = "-Infinity";
+        } else if (use_sign_plus) {
+            special_str = "+Infinity";
+        } else {
+            special_str = "Infinity";
+        }
+        int special_len = strlen(special_str);
+        if (width == 0 || special_len <= width) {
+            if (width > special_len) {
+                for (int i = 0; i < width - special_len; i++) {
+                    *result = append_to_string(*result, " ");
+                }
+            }
+            *result = append_to_string(*result, special_str);
+        } else {
+            for (int i = 0; i < width; i++) {
+                *result = append_to_string(*result, "*");
+            }
+        }
+        return;
+    }
+
+    val = val * pow(10, scale);
+
     int width = 0, decimal_digits = 0;
     long integer_part = (long)fabs(val);
     double decimal_part = fabs(val) - integer_part;
@@ -1204,8 +1248,8 @@ char** parse_fortran_format(const fchar* format, const int64_t format_len, int64
             case '(' :
                 start = index;
                 index = find_matching_parentheses(format, format_len, index);
-                format_values_2[format_values_count++] = substring(cformat, start, index);
                 *item_start = format_values_count;
+                format_values_2[format_values_count++] = substring(cformat, start, index);
                 break;
             case 't' :
                 // handle 'T', 'TL' & 'TR' editing see section 13.8.1.2 in 24-007.pdf
@@ -1267,7 +1311,7 @@ char** parse_fortran_format(const fchar* format, const int64_t format_len, int64
                     if (cformat[index] == '(') {
                         start = index;
                         index = find_matching_parentheses(format, format_len, index);
-                        *item_start = format_values_count+1;
+                        *item_start = format_values_count;
                         for (int i = 0; i < repeat; i++) {
                             format_values_2[format_values_count++] = substring(cformat, start, index);
                         }
@@ -1838,6 +1882,14 @@ bool move_to_next_element(struct serialization_info* s_info, bool peek){
 }
 
 static void format_float_fortran(char* result, float val) {
+    if (isnan(val)) {
+        sprintf(result, "NaN");
+        return;
+    }
+    if (isinf(val)) {
+        sprintf(result, "%sInfinity", (val < 0) ? "-" : "");
+        return;
+    }
     float abs_val = fabsf(val);
     
     if (abs_val == 0.0f) {
@@ -1859,6 +1911,14 @@ static void format_float_fortran(char* result, float val) {
 }
 
 static void format_double_fortran(char* result, double val) {
+    if (isnan(val)) {
+        sprintf(result, "NaN");
+        return;
+    }
+    if (isinf(val)) {
+        sprintf(result, "%sInfinity", (val < 0) ? "-" : "");
+        return;
+    }
     double abs_val = fabs(val);
     
     if (abs_val == 0.0) {
@@ -2149,6 +2209,9 @@ LFORTRAN_API char* _lcompilers_string_format_fortran(const char* format, int64_t
                 format_values_count = format_values_count + new_fmt_val_count;
                 free(format_values[i]);
                 format_values[i] = NULL;
+                if (i < item_start_idx) {
+                    item_start_idx += new_fmt_val_count;
+                }
                 free(new_fmt_val);
                 continue;
             }
@@ -2198,6 +2261,8 @@ LFORTRAN_API char* _lcompilers_string_format_fortran(const char* format, int64_t
                         rounding_mode = 'z';
                     }
                 }
+            } else if (tolower(value[0]) == 'b' && strlen(value) == 2 &&
+                       (tolower(value[1]) == 'n' || tolower(value[1]) == 'z')) {
             } else if (tolower(value[0]) == 't') {
                 if (tolower(value[1]) == 'l') {
                     // handle "TL" format specifier - move position left
@@ -4950,6 +5015,15 @@ LFORTRAN_API void _lfortran_flush(int32_t unit_num)
 LFORTRAN_API void _lfortran_abort()
 {
     abort();
+}
+
+LFORTRAN_API void _lfortran_sleep(int32_t seconds)
+{
+#if defined(_WIN32)
+    Sleep((DWORD)seconds * 1000);
+#else
+    sleep((unsigned int)seconds);
+#endif
 }
 
 LFORTRAN_API void _lfortran_inquire(const fchar* f_name_data, int64_t f_name_len, bool *exists, int32_t unit_num,
@@ -7761,20 +7835,6 @@ LFORTRAN_API void _lfortran_file_write(int32_t unit_num, int32_t* iostat, const 
             char* end = va_arg(args, char*);
             int64_t end_len = va_arg(args, int64_t);
 
-            // In Fortran, each WRITE produces a record terminated by a
-            // newline.  When the formatted data ends with '\n' (e.g.
-            // from '/' edit descriptor or new_line() in data), the
-            // last trailing '\n' already acts as the record terminator,
-            // so remove it from the data and skip the end-of-record
-            // to avoid duplicate blank lines.
-            if (end_len == 1 && end[0] == '\n') {
-                if (str_len > 0 && str[str_len - 1] == '\n') {
-                    str_len--;
-                    end_len = 0;
-                    end = "";
-                }
-            }
-
             if(open_delim != '\0') {
                 fprintf(filep, "%c%.*s%c%.*s",
                     open_delim, (int)str_len, str, close_delim,
@@ -7861,29 +7921,55 @@ LFORTRAN_API void _lfortran_string_write(char **str_holder, bool is_allocatable,
     if(iostat != NULL) *iostat = 0;
 }
 
-LFORTRAN_API void _lfortran_string_read_i32(char *str, int64_t len, char *format, int32_t *i) {
+LFORTRAN_API void _lfortran_string_read_i32(char *str, int64_t len, char *format, int32_t *i, int32_t *iostat) {
     char *buf = to_c_string((const fchar*)str, len);
-    sscanf(buf, format, i);
+    int rc = sscanf(buf, format, i);
     free(buf);
+    if (rc != 1) {
+        if (iostat) { *iostat = 5010; return; }
+        fprintf(stderr, "Error: Bad integer for item in list input\n");
+        exit(1);
+    }
+    if (iostat) *iostat = 0;
 }
 
 
-LFORTRAN_API void _lfortran_string_read_i64(char *str, int64_t len, char *format, int64_t *i) {
+LFORTRAN_API void _lfortran_string_read_i64(char *str, int64_t len, char *format, int64_t *i, int32_t *iostat) {
     char *buf = to_c_string((const fchar*)str, len);
-    sscanf(buf, format, i);
+    int rc = sscanf(buf, format, i);
     free(buf);
+    if (rc != 1) {
+        if (iostat) { *iostat = 5010; return; }
+        fprintf(stderr, "Error: Bad integer for item in list input\n");
+        exit(1);
+    }
+    if (iostat) *iostat = 0;
 }
 
-LFORTRAN_API void _lfortran_string_read_f32(char *str, int64_t len, char *format, float *f) {
+LFORTRAN_API void _lfortran_string_read_f32(char *str, int64_t len, char *format, float *f, int32_t *iostat) {
     char *buf = to_c_string((const fchar*)str, len);
-    sscanf(buf, format, f);
+    convert_fortran_d_exponent(buf);
+    int rc = sscanf(buf, format, f);
     free(buf);
+    if (rc != 1) {
+        if (iostat) { *iostat = 5010; return; }
+        fprintf(stderr, "Error: Bad real for item in list input\n");
+        exit(1);
+    }
+    if (iostat) *iostat = 0;
 }
 
-LFORTRAN_API void _lfortran_string_read_f64(char *str, int64_t len, char *format, double *f) {
+LFORTRAN_API void _lfortran_string_read_f64(char *str, int64_t len, char *format, double *f, int32_t *iostat) {
     char *buf = to_c_string((const fchar*)str, len);
-    sscanf(buf, format, f);
+    convert_fortran_d_exponent(buf);
+    int rc = sscanf(buf, format, f);
     free(buf);
+    if (rc != 1) {
+        if (iostat) { *iostat = 5010; return; }
+        fprintf(stderr, "Error: Bad real for item in list input\n");
+        exit(1);
+    }
+    if (iostat) *iostat = 0;
 }
 
 char* remove_whitespace(char* str, int64_t* len) {
@@ -7915,14 +8001,19 @@ LFORTRAN_API void _lfortran_string_read_str(char *src_data, int64_t src_len, cha
         src_data, src_len);
 }
 
-LFORTRAN_API void _lfortran_string_read_bool(char *str, int64_t len, char *format, int32_t *i) {
+LFORTRAN_API void _lfortran_string_read_bool(char *str, int64_t len, char *format, int32_t *i, int32_t *iostat) {
     char *buf = (char*)malloc(len + 1);
     if (!buf) return;
     memcpy(buf, str, len);
     buf[len] = '\0';
-    sscanf(buf, format, i);
-    printf("%s\n", buf);
+    int rc = sscanf(buf, format, i);
     free(buf);
+    if (rc != 1) {
+        if (iostat) { *iostat = 5010; return; }
+        fprintf(stderr, "Error: Bad logical for item in list input\n");
+        exit(1);
+    }
+    if (iostat) *iostat = 0;
 }
 
 // Replace Fortran 'd'/'D' exponent with 'e'/'E' so that C's sscanf can parse it
@@ -7935,18 +8026,30 @@ static void _lfortran_replace_d_exponent(char *buf) {
     }
 }
 
-LFORTRAN_API void _lfortran_string_read_c32(char *str, int64_t len, char *format, struct _lfortran_complex_32 *c) {
+LFORTRAN_API void _lfortran_string_read_c32(char *str, int64_t len, char *format, struct _lfortran_complex_32 *c, int32_t *iostat) {
     char *buf = to_c_string((const fchar*)str, len);
     _lfortran_replace_d_exponent(buf);
-    sscanf(buf, format, &c->re, &c->im);
+    int rc = sscanf(buf, format, &c->re, &c->im);
     free(buf);
+    if (rc != 2) {
+        if (iostat) { *iostat = 5010; return; }
+        fprintf(stderr, "Error: Bad complex for item in list input\n");
+        exit(1);
+    }
+    if (iostat) *iostat = 0;
 }
 
-LFORTRAN_API void _lfortran_string_read_c64(char *str, int64_t len, char *format, struct _lfortran_complex_64 *c) {
+LFORTRAN_API void _lfortran_string_read_c64(char *str, int64_t len, char *format, struct _lfortran_complex_64 *c, int32_t *iostat) {
     char *buf = to_c_string((const fchar*)str, len);
     _lfortran_replace_d_exponent(buf);
-    sscanf(buf, format, &c->re, &c->im);
+    int rc = sscanf(buf, format, &c->re, &c->im);
     free(buf);
+    if (rc != 2) {
+        if (iostat) { *iostat = 5010; return; }
+        fprintf(stderr, "Error: Bad complex for item in list input\n");
+        exit(1);
+    }
+    if (iostat) *iostat = 0;
 }
 
 void lfortran_error(const char *message) {
@@ -7999,8 +8102,10 @@ LFORTRAN_API void _lfortran_string_read_i64_array(char *str, int64_t len, char *
 
 LFORTRAN_API void _lfortran_string_read_f32_array(char *str, int64_t len, char *format, float *arr) {
     (void)format; 
-    const char *pos = str;
-    const char *end = str + len;
+    char *buf = to_c_string((const fchar*)str, len);
+    convert_fortran_d_exponent(buf);
+    const char *pos = buf;
+    const char *end = buf + len;
     char *next = NULL;
     int64_t count = 0;
     while (pos < end) {
@@ -8015,12 +8120,15 @@ LFORTRAN_API void _lfortran_string_read_f32_array(char *str, int64_t len, char *
         arr[count++] = value;
         pos = next;
     }
+    free(buf);
 }
 
 LFORTRAN_API void _lfortran_string_read_f64_array(char *str, int64_t len, char *format, double *arr) {
     (void)format; 
-    const char *pos = str;
-    const char *end = str + len;
+    char *buf = to_c_string((const fchar*)str, len);
+    convert_fortran_d_exponent(buf);
+    const char *pos = buf;
+    const char *end = buf + len;
     char *next = NULL;
     int64_t count = 0;
     while (pos < end) {
@@ -8035,6 +8143,7 @@ LFORTRAN_API void _lfortran_string_read_f64_array(char *str, int64_t len, char *
         arr[count++] = value;
         pos = next;
     }
+    free(buf);
 }
 
 LFORTRAN_API void _lfortran_string_read_str_array(char *str, int64_t len, char *format, char **arr) {
@@ -8212,6 +8321,97 @@ LFORTRAN_API int32_t _lfortran_get_command_status() {
 
 // << Command line arguments << ------------------------------------------------
 
+// >> Floating point exception trapping >> -------------------------------------
+// These constants must match the LCOMPILERS_FE_* values in utils.h
+#define LCOMPILERS_FE_INVALID   1
+#define LCOMPILERS_FE_ZERO      2
+#define LCOMPILERS_FE_OVERFLOW  4
+#define LCOMPILERS_FE_UNDERFLOW 8
+#define LCOMPILERS_FE_INEXACT   16
+#define LCOMPILERS_FE_DENORMAL  32
+
+LFORTRAN_API void _lfortran_enable_fpe_traps(int32_t trap_mask) {
+#if defined(COMPILE_TO_WASM)
+    fprintf(stderr, "Warning: --fpe-trap is not supported on WASM\n");
+    (void)trap_mask;
+#elif defined(__linux__)
+    int excepts = 0;
+    if (trap_mask & LCOMPILERS_FE_INVALID)   excepts |= FE_INVALID;
+    if (trap_mask & LCOMPILERS_FE_ZERO)      excepts |= FE_DIVBYZERO;
+    if (trap_mask & LCOMPILERS_FE_OVERFLOW)  excepts |= FE_OVERFLOW;
+    if (trap_mask & LCOMPILERS_FE_UNDERFLOW) excepts |= FE_UNDERFLOW;
+    if (trap_mask & LCOMPILERS_FE_INEXACT)   excepts |= FE_INEXACT;
+    // denormal: Linux feenableexcept doesn't have a separate flag;
+    // on x86, we handle it via MXCSR below
+    if (excepts) {
+        feenableexcept(excepts);
+    }
+#if defined(__x86_64__) || defined(__i386__)
+    if (trap_mask & LCOMPILERS_FE_DENORMAL) {
+        // Enable denormal-operand exception in SSE MXCSR (bit 8)
+        unsigned int mxcsr;
+        __asm__ __volatile__("stmxcsr %0" : "=m"(mxcsr));
+        mxcsr &= ~(1u << 8);  // Clear DM (Denormals-Are-Zeros mask) to unmask
+        __asm__ __volatile__("ldmxcsr %0" : : "m"(mxcsr));
+    }
+#endif
+#elif defined(__APPLE__)
+#if defined(__x86_64__) || defined(__i386__)
+    // macOS x86_64: manipulate x87 control word and SSE MXCSR
+    fenv_t env;
+    fegetenv(&env);
+    // x87 control word: bits 0-5 are exception masks (1=masked, 0=unmasked)
+    if (trap_mask & LCOMPILERS_FE_INVALID)   env.__control &= ~FE_INVALID;
+    if (trap_mask & LCOMPILERS_FE_ZERO)      env.__control &= ~FE_DIVBYZERO;
+    if (trap_mask & LCOMPILERS_FE_OVERFLOW)  env.__control &= ~FE_OVERFLOW;
+    if (trap_mask & LCOMPILERS_FE_UNDERFLOW) env.__control &= ~FE_UNDERFLOW;
+    if (trap_mask & LCOMPILERS_FE_INEXACT)   env.__control &= ~FE_INEXACT;
+    // SSE MXCSR: bits 7-12 are exception masks
+    if (trap_mask & LCOMPILERS_FE_INVALID)   env.__mxcsr &= ~(1u << 7);   // Invalid
+    if (trap_mask & LCOMPILERS_FE_ZERO)      env.__mxcsr &= ~(1u << 9);   // Divide-by-zero
+    if (trap_mask & LCOMPILERS_FE_OVERFLOW)  env.__mxcsr &= ~(1u << 10);  // Overflow
+    if (trap_mask & LCOMPILERS_FE_UNDERFLOW) env.__mxcsr &= ~(1u << 11);  // Underflow
+    if (trap_mask & LCOMPILERS_FE_INEXACT)   env.__mxcsr &= ~(1u << 12);  // Inexact (Precision)
+    if (trap_mask & LCOMPILERS_FE_DENORMAL)  env.__mxcsr &= ~(1u << 8);   // Denormal
+    fesetenv(&env);
+#elif defined(__aarch64__)
+    // macOS ARM64: manipulate FPCR register
+    // FPCR trap enable bits: 8=IOE(invalid), 9=DZE(divbyzero), 10=OFE(overflow),
+    //                        11=UFE(underflow), 12=IXE(inexact), 15=IDE(input denormal)
+    uint64_t fpcr;
+    __asm__ __volatile__("mrs %0, fpcr" : "=r"(fpcr));
+    if (trap_mask & LCOMPILERS_FE_INVALID)   fpcr |= (1ULL << 8);   // IOE - Invalid Operation
+    if (trap_mask & LCOMPILERS_FE_ZERO)      fpcr |= (1ULL << 9);   // DZE - Division by Zero
+    if (trap_mask & LCOMPILERS_FE_OVERFLOW)  fpcr |= (1ULL << 10);  // OFE - Overflow
+    if (trap_mask & LCOMPILERS_FE_UNDERFLOW) fpcr |= (1ULL << 11);  // UFE - Underflow
+    if (trap_mask & LCOMPILERS_FE_INEXACT)   fpcr |= (1ULL << 12);  // IXE - Inexact
+    if (trap_mask & LCOMPILERS_FE_DENORMAL)  fpcr |= (1ULL << 15);  // IDE - Input Denormal
+    __asm__ __volatile__("msr fpcr, %0" : : "r"(fpcr));
+#else
+    fprintf(stderr, "Warning: --fpe-trap is not supported on this Apple architecture\n");
+    (void)trap_mask;
+#endif
+#elif defined(_WIN32)
+    unsigned int cw = 0;
+    // _controlfp: second arg = mask of bits to change
+    // Clearing a bit in the control word UNMASKS (enables) that exception
+    unsigned int disable_mask = 0;
+    if (trap_mask & LCOMPILERS_FE_INVALID)   disable_mask |= _EM_INVALID;
+    if (trap_mask & LCOMPILERS_FE_ZERO)      disable_mask |= _EM_ZERODIVIDE;
+    if (trap_mask & LCOMPILERS_FE_OVERFLOW)  disable_mask |= _EM_OVERFLOW;
+    if (trap_mask & LCOMPILERS_FE_UNDERFLOW) disable_mask |= _EM_UNDERFLOW;
+    if (trap_mask & LCOMPILERS_FE_INEXACT)   disable_mask |= _EM_INEXACT;
+    if (trap_mask & LCOMPILERS_FE_DENORMAL)  disable_mask |= _EM_DENORMAL;
+    if (disable_mask) {
+        _controlfp_s(&cw, ~disable_mask & _MCW_EM, disable_mask);
+    }
+#else
+    fprintf(stderr, "Warning: --fpe-trap is not supported on this platform\n");
+    (void)trap_mask;
+#endif
+}
+// << Floating point exception trapping << -------------------------------------
+
 // Initial setup
 LFORTRAN_API void _lpython_call_initial_functions(int32_t argc_1, char *argv_1[]) {
     _lpython_set_argv(argc_1, argv_1);
@@ -8303,6 +8503,17 @@ int shared_lib_callback(struct dl_phdr_info *info,
 
 #ifdef HAVE_LFORTRAN_MACHO
 void get_local_address_mac(struct Stacktrace *d) {
+    // Use image 0 (always the main executable on macOS) instead of
+    // source_filename, which can diverge from the binary name.
+    char *main_base = NULL;
+    if (_dyld_image_count() > 0) {
+        main_base = get_base_name((char *)_dyld_get_image_name(0));
+    }
+    if (main_base == NULL) {
+        printf("The executable name could not be resolved for stacktrace.\n"
+            "Aborting...\n");
+        abort();
+    }
     for (uint32_t i = 0; i < _dyld_image_count(); i++) {
         const struct mach_header *header = _dyld_get_image_header(i);
         intptr_t offset = _dyld_get_image_vmaddr_slide(i);
@@ -8315,18 +8526,14 @@ void get_local_address_mac(struct Stacktrace *d) {
                 struct segment_command* seg = (struct segment_command*)cmd;
                 if (((intptr_t)d->current_pc >= (seg->vmaddr+offset)) &&
                     ((intptr_t)d->current_pc < (seg->vmaddr+offset + seg->vmsize))) {
-                    int check_filename = strcmp(get_base_name(
-                        (char *)_dyld_get_image_name(i)),
-                        get_base_name(source_filename));
-                    if ( check_filename != 0 ) return;
+                    char *img_base = get_base_name((char *)_dyld_get_image_name(i));
+                    int mismatch = (img_base == NULL || strcmp(img_base, main_base) != 0);
+                    free(img_base);
+                    if (mismatch) { free(main_base); return; }
                     d->local_pc[d->local_pc_size] = d->current_pc - offset;
                     d->binary_filename[d->local_pc_size] = (char *)_dyld_get_image_name(i);
-                    // Resolve symlinks to a real path:
-                    char buffer[PATH_MAX];
-                    char* resolved;
-                    resolved = realpath(d->binary_filename[d->local_pc_size], buffer);
-                    if (resolved) d->binary_filename[d->local_pc_size] = resolved;
                     d->local_pc_size++;
+                    free(main_base);
                     return;
                 }
             }
@@ -8334,24 +8541,21 @@ void get_local_address_mac(struct Stacktrace *d) {
                 struct segment_command_64* seg = (struct segment_command_64*)cmd;
                 if ((d->current_pc >= (seg->vmaddr + offset)) &&
                     (d->current_pc < (seg->vmaddr + offset + seg->vmsize))) {
-                    int check_filename = strcmp(get_base_name(
-                        (char *)_dyld_get_image_name(i)),
-                        get_base_name(source_filename));
-                    if ( check_filename != 0 ) return;
+                    char *img_base = get_base_name((char *)_dyld_get_image_name(i));
+                    int mismatch = (img_base == NULL || strcmp(img_base, main_base) != 0);
+                    free(img_base);
+                    if (mismatch) { free(main_base); return; }
                     d->local_pc[d->local_pc_size] = d->current_pc - offset;
                     d->binary_filename[d->local_pc_size] = (char *)_dyld_get_image_name(i);
-                    // Resolve symlinks to a real path:
-                    char buffer[PATH_MAX];
-                    char* resolved;
-                    resolved = realpath(d->binary_filename[d->local_pc_size], buffer);
-                    if (resolved) d->binary_filename[d->local_pc_size] = resolved;
                     d->local_pc_size++;
+                    free(main_base);
                     return;
                 }
             }
             cmd = (struct load_command*)((char*)cmd + cmd->cmdsize);
         }
     }
+    free(main_base);
     printf("The stack address was not found in any shared library or"
         " the main program, the stack is probably corrupted.\n"
         "Aborting...\n");
@@ -8403,21 +8607,31 @@ uint32_t get_file_size(int64_t fp) {
 void get_local_info_dwarfdump(struct Stacktrace *d) {
     // TODO: Read the contents of lines.dat from here itself.
     d->stack_size = 0;
-    char *base_name = get_base_name(source_filename);
-    if (base_name == NULL) {
+    // Use the binary executable path instead of source_filename to avoid
+    // Ninja preprocessed filename mismatches (e.g. *.f90-pp.f90).
+    const char *exe_path = binary_executable_path;
+    for (uint64_t i = 0; i < d->local_pc_size; i++) {
+        if (d->binary_filename[i] != NULL && d->binary_filename[i][0] != '\0') {
+            exe_path = d->binary_filename[i];
+            break;
+        }
+    }
+    char resolved[4096];
+#if !defined(_WIN32) && !defined(COMPILE_TO_WASM)
+    if (realpath(exe_path, resolved) != NULL) {
+        exe_path = resolved;
+    }
+#endif
+    const char *base = strrchr(exe_path, '/');
+    base = base ? (base + 1) : exe_path;
+    const char *dot = strrchr(base, '.');
+    size_t stem_len = dot ? (size_t)(dot - exe_path) : strlen(exe_path);
+    char filename[4096];
+    if (snprintf(filename, sizeof(filename), "%.*s_lines.dat.txt",
+                 (int)stem_len, exe_path) >= (int)sizeof(filename)) {
         return;
     }
-
-    char *filename = malloc(strlen(base_name) + 15);
-    if (filename == NULL) {
-        free(base_name);
-        return;
-    }
-    strcpy(filename, base_name);
-    strcat(filename, "_lines.dat.txt");
     int64_t fd = _lpython_open(filename, "r");
-    free(base_name);
-    free(filename);
     if (fd < 0) {
         return;
     }

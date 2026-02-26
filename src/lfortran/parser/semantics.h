@@ -660,6 +660,20 @@ static inline var_sym_t* VARSYM(Allocator &al, Location &l,
     return r;
 }
 
+static inline ast_t* slash_init_to_expr(Allocator &al, Location &l, const Vec<ast_t*> &values) {
+    if (values.size() == 1) {
+        return values[0];
+    } else {
+        expr_t** exprs = al.allocate<expr_t*>(values.size());
+        for (size_t i = 0; i < values.size(); i++) {
+            exprs[i] = down_cast<expr_t>(values[i]);
+        }
+        return make_ArrayInitializer_t(al, l,
+            nullptr, nullptr, exprs, values.size());
+    }
+}
+#define SLASH_INIT_EXPR(values, l) slash_init_to_expr(p.m_a, l, values)
+
 #define VAR_SYM_NAME(name, sym, loc) VARSYM(p.m_a, loc, \
         name2char(name), nullptr, 0, nullptr, 0, nullptr, nullptr, sym, nullptr)
 #define VAR_SYM_EMPTY(loc) VARSYM(p.m_a, loc, \
@@ -1069,6 +1083,7 @@ char *strptr2str_null(Allocator &al, const LCompilers::Str *s) {
 #define BOZ(x, l) make_BOZ_t(p.m_a, l, x.c_str(p.m_a))
 #define ASSIGN(label, variable, l) make_Assign_t(p.m_a, l, 0, label, name2char(variable), nullptr)
 #define ASSIGNMENT(x, y, l) make_Assignment_t(p.m_a, l, 0, EXPR(x), EXPR(y), nullptr)
+#define INFER_ASSIGNMENT(x, y, l) make_InferAssignment_t(p.m_a, l, 0, EXPR(x), EXPR(y), nullptr)
 #define ASSOCIATE(x, y, l) make_Associate_t(p.m_a, l, 0, EXPR(x), EXPR(y), nullptr)
 #define GOTO(x, l) make_GoTo_t(p.m_a, l, 0, nullptr, \
         EXPR(INTEGER(x, l)), nullptr, 0, nullptr)

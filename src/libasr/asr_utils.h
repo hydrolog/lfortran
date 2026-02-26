@@ -28,14 +28,15 @@
         asr_owner_sym = ASR::down_cast<ASR::symbol_t>(current_scope->asr_owner); \
     } \
     SymbolTable* temp_scope = current_scope; \
-    if (asr_owner_sym && temp_scope->get_counter() != ASRUtils::symbol_parent_symtab(final_sym)->get_counter() && \
-            !ASR::is_a<ASR::ExternalSymbol_t>(*final_sym) && !ASR::is_a<ASR::Variable_t>(*final_sym)) { \
-        if (ASR::is_a<ASR::AssociateBlock_t>(*asr_owner_sym) || ASR::is_a<ASR::Block_t>(*asr_owner_sym)) { \
-            temp_scope = temp_scope->parent; \
-            if (temp_scope->get_counter() != ASRUtils::symbol_parent_symtab(final_sym)->get_counter()) { \
-                current_function_dependencies.push_back(al, ASRUtils::symbol_name(final_sym)); \
+    if (asr_owner_sym && !ASR::is_a<ASR::ExternalSymbol_t>(*final_sym) && !ASR::is_a<ASR::Variable_t>(*final_sym)) { \
+        while (temp_scope->parent && temp_scope->asr_owner && ASR::is_a<ASR::symbol_t>(*temp_scope->asr_owner)) { \
+            ASR::symbol_t* temp_owner_sym = ASR::down_cast<ASR::symbol_t>(temp_scope->asr_owner); \
+            if (!ASR::is_a<ASR::AssociateBlock_t>(*temp_owner_sym) && !ASR::is_a<ASR::Block_t>(*temp_owner_sym)) { \
+                break; \
             } \
-        } else { \
+            temp_scope = temp_scope->parent; \
+        } \
+        if (temp_scope->get_counter() != ASRUtils::symbol_parent_symtab(final_sym)->get_counter()) { \
             current_function_dependencies.push_back(al, ASRUtils::symbol_name(final_sym)); \
         } \
     } \
@@ -45,14 +46,15 @@
         asr_owner_sym = ASR::down_cast<ASR::symbol_t>(current_scope->asr_owner); \
     } \
     SymbolTable* temp_scope = current_scope; \
-    if (asr_owner_sym && temp_scope->get_counter() != ASRUtils::symbol_parent_symtab(final_sym)->get_counter() && \
-            !ASR::is_a<ASR::ExternalSymbol_t>(*final_sym) && !ASR::is_a<ASR::Variable_t>(*final_sym)) { \
-        if (ASR::is_a<ASR::AssociateBlock_t>(*asr_owner_sym) || ASR::is_a<ASR::Block_t>(*asr_owner_sym)) { \
-            temp_scope = temp_scope->parent; \
-            if (temp_scope->get_counter() != ASRUtils::symbol_parent_symtab(final_sym)->get_counter()) { \
-                current_function_dependencies.push_back(al, dep_name); \
+    if (asr_owner_sym && !ASR::is_a<ASR::ExternalSymbol_t>(*final_sym) && !ASR::is_a<ASR::Variable_t>(*final_sym)) { \
+        while (temp_scope->parent && temp_scope->asr_owner && ASR::is_a<ASR::symbol_t>(*temp_scope->asr_owner)) { \
+            ASR::symbol_t* temp_owner_sym = ASR::down_cast<ASR::symbol_t>(temp_scope->asr_owner); \
+            if (!ASR::is_a<ASR::AssociateBlock_t>(*temp_owner_sym) && !ASR::is_a<ASR::Block_t>(*temp_owner_sym)) { \
+                break; \
             } \
-        } else { \
+            temp_scope = temp_scope->parent; \
+        } \
+        if (temp_scope->get_counter() != ASRUtils::symbol_parent_symtab(final_sym)->get_counter()) { \
             current_function_dependencies.push_back(al, dep_name); \
         } \
     } \
@@ -6745,7 +6747,7 @@ inline ASR::asr_t* make_ArrayConstructor_t_util(Allocator &al, const Location &a
         dim.m_length = ASRUtils::EXPR(ASR::make_IntegerConstant_t(
             al, a_loc, n_args, ASRUtils::TYPE(ASR::make_Integer_t(al, a_loc, 4))));
         dim.m_start = ASRUtils::EXPR(ASR::make_IntegerConstant_t(
-            al, a_loc, 0, ASRUtils::TYPE(ASR::make_Integer_t(al, a_loc, 4))));
+            al, a_loc, 1, ASRUtils::TYPE(ASR::make_Integer_t(al, a_loc, 4))));
         dims.push_back(al, dim);
         a_type = ASRUtils::make_Array_t_util(al, dim.loc,
             a_type, dims.p, dims.size(), ASR::abiType::Source,
@@ -6797,7 +6799,7 @@ inline ASR::asr_t* make_ArrayConstructor_t_util(Allocator &al, const Location &a
         // data is always allocated to n_data bytes
         int64_t n_data = curr_idx * extract_kind_from_ttype_t(a_type_->m_type);
         if (is_character(*a_type_->m_type)) {
-            int len;
+            int len = 0;
             if(!ASRUtils::extract_value(ASR::down_cast<ASR::String_t>(a_type_->m_type)->m_len, len)){LCOMPILERS_ASSERT(false);}
             n_data = curr_idx * len;
         } else if (ASR::is_a<ASR::StructType_t>(*a_type_->m_type)) {
