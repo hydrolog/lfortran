@@ -932,6 +932,33 @@ bool set_allocation_size(
                                 add_allocated_check, len_allocte_expr);
             break;
         }
+        case ASR::exprType::ComplexRe:
+        case ASR::exprType::ComplexIm: {
+            ASR::expr_t* arg;
+            if (value->type == ASR::exprType::ComplexRe) {
+                arg = ASR::down_cast<ASR::ComplexRe_t>(value)->m_arg;
+            } else {
+                arg = ASR::down_cast<ASR::ComplexIm_t>(value)->m_arg;
+            }
+            if (ASRUtils::is_array(ASRUtils::expr_type(arg))) {
+                size_t rank = ASRUtils::extract_n_dims_from_ttype(
+                    ASRUtils::expr_type(arg));
+                allocate_dims.reserve(al, rank);
+                for (size_t i = 0; i < rank; i++) {
+                    ASR::dimension_t allocate_dim;
+                    allocate_dim.loc = loc;
+                    allocate_dim.m_start = ASRUtils::EXPR(ASR::make_IntegerConstant_t(
+                        al, loc, 1, ASRUtils::TYPE(ASR::make_Integer_t(al, loc, 4))));
+                    ASR::expr_t* dim = ASRUtils::EXPR(ASR::make_IntegerConstant_t(
+                        al, loc, i + 1, ASRUtils::TYPE(ASR::make_Integer_t(al, loc, 4))));
+                    allocate_dim.m_length = ASRUtils::EXPR(ASR::make_ArraySize_t(
+                        al, loc, ASRUtils::get_past_array_physical_cast(arg),
+                        dim, ASRUtils::TYPE(ASR::make_Integer_t(al, loc, 4)), nullptr));
+                    allocate_dims.push_back(al, allocate_dim);
+                }
+            }
+            break;
+        }
         default: {
             LCOMPILERS_ASSERT_MSG(false, "ASR::exprType::" + std::to_string(value->type)
                 + " not handled yet in set_allocation_size");
@@ -1129,7 +1156,9 @@ ASR::expr_t* create_and_allocate_temporary_variable_for_struct(
     return struct_var_temporary;
 }
 
-bool is_elemental_expr(ASR::expr_t* value) {
+// Returns true if `value` is a direct reference to existing memory (e.g., a variable
+// or a pointer to an array element) and does NOT require a temporary variable to be allocated.
+bool is_directly_addressable_array_expr(ASR::expr_t* value) {
     value = ASRUtils::get_past_array_physical_cast(value);
     switch( value->type ) {
         case ASR::exprType::Var: {
@@ -1138,6 +1167,11 @@ bool is_elemental_expr(ASR::expr_t* value) {
         case ASR::exprType::StructInstanceMember: {
             ASR::StructInstanceMember_t* struct_instance_member = ASR::down_cast<ASR::StructInstanceMember_t>(value);
             return !ASR::is_a<ASR::Array_t>(*struct_instance_member->m_type);
+        }
+        case ASR::exprType::GetPointer: {
+            // GetPointer is just an address into existing expr,
+            // so no temporary variable needed.
+            return true;
         }
         default: {
             return false;
@@ -1154,7 +1188,7 @@ bool is_temporary_needed(ASR::expr_t* value) {
         ASRUtils::get_fixed_size_of_array(ASRUtils::expr_type(value)) > 0));
     return is_expr_with_no_type 
         && !ASRUtils::is_stringToArray_cast(value)
-        && !is_elemental_expr(value) 
+        && !is_directly_addressable_array_expr(value)
         && is_non_empty_fixed_size_array;
 }
 
@@ -2547,7 +2581,7 @@ class ReplaceExprWithTemporaryVisitor:
         call_replacer();
         replacer.lhs_var = nullptr;
         bool is_assignment_target_array_section_item = ASRUtils::is_array_indexed_with_array_indices(m_args, n_args) &&
-                    ASRUtils::is_array(ASRUtils::expr_type(x.m_value)) && !is_elemental_expr(x.m_value);
+                    ASRUtils::is_array(ASRUtils::expr_type(x.m_value)) && !is_directly_addressable_array_expr(x.m_value);
         if(  is_assignment_target_array_section_item ||
             ((ASR::is_a<ASR::ArraySection_t>(*x.m_target) || ASR::is_a<ASR::ArrayItem_t>(*x.m_target)) &&
             is_common_symbol_present_in_lhs_and_rhs(al, lhs_array_var, x.m_value)) ||
@@ -2855,7 +2889,11 @@ class VerifySimplifierASROutput:
 
     void check_for_var_if_array(ASR::expr_t* expr) {
         if ( is_temporary_needed(expr) ) {
-            LCOMPILERS_ASSERT(ASR::is_a<ASR::Var_t>(*ASRUtils::get_past_array_physical_cast(expr)));
+            [[maybe_unused]] ASR::expr_t* stripped_expr = ASRUtils::get_past_array_physical_cast(expr);
+            LCOMPILERS_ASSERT(
+                ASR::is_a<ASR::Var_t>(*stripped_expr) ||
+                ASR::is_a<ASR::StructInstanceMember_t>(*stripped_expr) ||
+                ASR::is_a<ASR::UnionInstanceMember_t>(*stripped_expr));
         }
     }
 

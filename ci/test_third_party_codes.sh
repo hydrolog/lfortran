@@ -137,6 +137,51 @@ time_section "🧪 Testing splpak" '
   rm -rf splpak
 '
 
+time_section "🧪 Testing smart-pointers" '
+  git clone https://github.com/certik/smart-pointers.git
+  cd smart-pointers
+  export PATH="$(pwd)/../src/bin:$PATH"
+  micromamba install -c conda-forge fpm
+
+  git checkout -t origin/lf2
+  git checkout 95de5105c6a469b64feb39e999567f5e2fcdd033
+  fpm test --compiler=lfortran --flag --cpp --flag --realloc-lhs-arrays
+  rm -rf build
+  fpm test --compiler=lfortran --flag --cpp --flag --separate-compilation --flag --realloc-lhs-arrays
+
+  print_success "Done with smart-pointers"
+  cd ..
+'
+
+time_section "🧪 Testing Formal" '
+  git clone https://github.com/certik/formal.git
+  cd formal
+  export PATH="$(pwd)/../src/bin:$PATH"
+  micromamba install -c conda-forge fpm
+
+  git checkout -t origin/lf1
+  git checkout 671ab24c3d639b1a2fedd27f727e96dadf404c5c
+  fpm test --compiler=lfortran --flag --cpp --flag --realloc-lhs-arrays
+  rm -rf build
+  fpm test --compiler=lfortran --flag --cpp --flag --separate-compilation --flag --realloc-lhs-arrays
+
+  print_success "Done with Formal"
+  cd ..
+'
+
+time_section "🧪 Testing Julienne" '
+  git clone https://github.com/BerkeleyLab/julienne.git
+  cd julienne
+  export PATH="$(pwd)/../src/bin:$PATH"
+  micromamba install -c conda-forge fpm
+
+  git checkout a75b5a831e303315304db52ec9dd70c9badc08cd
+  fpm test --compiler=lfortran --flag --cpp --flag --separate-compilation --flag --realloc-lhs-arrays
+
+  print_success "Done with Julienne"
+  cd ..
+'
+
 time_section "🧪 Testing fortran-regex" '
   git clone https://github.com/perazz/fortran-regex.git
   cd fortran-regex

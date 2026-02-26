@@ -43,6 +43,35 @@ module continue_compilation_1_mod
     end type type_t
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 contains
 
     subroutine my_undefined_type_test()
@@ -128,13 +157,13 @@ contains
         integer, intent(out) :: lhs
         integer, intent(out) :: rhs
     end subroutine assign_bad_rhs
-
-
-
-
-
-
-
+    subroutine slash_init_warning_paths()
+        enum, bind(c)
+            enumerator :: red/1/
+        end enum
+        type(MyClass), save :: slash_x/MyClass(1)/
+        integer, save :: slash_y/2/
+    end subroutine slash_init_warning_paths
 
 
 
@@ -265,6 +294,26 @@ program continue_compilation_1
     type(Derived) :: derived_var
     class(type_t) :: inst_tt
     real(8), parameter :: erfc_param = erfc(40.12_8)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -566,6 +615,24 @@ program continue_compilation_1
     integer, intent(in) :: in_intent
     
     base_var = derived_var
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
     contains
     subroutine sub(f)
         interface
