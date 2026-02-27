@@ -16,6 +16,7 @@ cmake \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
     -DCMAKE_C_FLAGS="${CFLAGS} -fdiagnostics-color=always" \
     -DCMAKE_CXX_FLAGS="${CXXFLAGS} -fdiagnostics-color=always" \
+    -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX \
     -G Ninja \
     .
 cmake --build .

@@ -54,7 +54,7 @@ def run_test(backend, std, test_pattern=None):
         # Use default Make generator
         generator_flags = ""
 
-    common=f" {generator_flags} -DCURRENT_BINARY_DIR={BASE_DIR}/test-{backend} -S {BASE_DIR} -B {BASE_DIR}/test-{backend}"
+    common=f" {generator_flags}  -DCURRENT_BINARY_DIR={BASE_DIR}/test-{backend} -S {BASE_DIR} -B {BASE_DIR}/test-{backend}"
     if backend == "gfortran":
         run_cmd(f"FC=gfortran cmake" + common,
                 cwd=cwd)

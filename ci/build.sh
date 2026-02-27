@@ -3,7 +3,7 @@
 set -ex
 
 echo "Running SHELL"
-
+LFORTRAN_CMAKE_GENERATOR=Ninja
 echo "CONDA_PREFIX=$CONDA_PREFIX"
 llvm-config --components
 

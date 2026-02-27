@@ -1,6 +1,6 @@
 [workspace]
 name = "lfortran"
-version = "0.42.0"
+version = "0.60.0"
 description = "Modern interactive LLVM-based Fortran compiler"
 authors = ["LFortran Maintainers <lfortran@groups.io>"]
 channels = ["conda-forge"]
@@ -8,13 +8,13 @@ platforms = ["linux-64", "win-64", "linux-aarch64"]
 
 # feature.default.tasks
 [tasks]
-start = "src/bin/lfortran"
+start = {cmd = "pixi shell -e llvm21 && lfortran"}
 clean = "git clean -dfx -e '.pixi'"
 
 [feature.test.tasks]
 ctest = "cmake --build . --parallel --target test"
-tests = "./run_tests.py"
-integration_tests = "cd integration_tests && ./run_tests.py -j16"
+tests = {cmd = "./run_tests.py" }
+integration_tests = { cmd = "./run_tests.py -j16 -b llvm --ninja", cwd = "integration_tests" }
 
 [feature.llvm7.target.linux-64.dependencies]
 llvmdev = ">=7.0.1,<8"
@@ -128,6 +128,7 @@ python = ">=3.12.0,<3.13"
 c-compiler = ">=1.11.0,<2"
 cxx-compiler = ">=1.11.0,<2"
 toml = ">=0.10.2,<0.11"
+pandoc = ">=3.9,<4"
 
 [feature.test.dependencies]
 python = ">=3.12,<3.14"
@@ -151,7 +152,11 @@ m2-bison = ">=3.0.4,<4"
 bison = ">=3.8.2,<4"
 
 [feature.build.tasks]
-build = "bash ./build1.sh"
+build = { cmd = "./build0.sh && ./build1.sh", cwd = ".", depends-on = "clean" }
+install-llvm21 = { cmd = "pixi install -e llvm21 && pixi shell -e llvm21"}
+install-llvm19 = { cmd = "pixi install -e llvm19 && pixi shell -e llvm19"}
+install = { cmd = "cmake --install .", cwd = "." }
+integration_tests = { cmd = "./run_tests.py -j16 -b llvm --ninja", cwd = "integration_tests" }
 
 [environments]
 llvm7 = {features = ["llvm7", "build"]}
@@ -169,4 +174,4 @@ llvm18 = {features = ["llvm18", "build"]}
 llvm19 = {features = ["llvm19", "build"]}
 llvm20 = {features = ["llvm20", "build"]}
 llvm21 = {features = ["llvm21", "build"]}
-test = {features = ["test"]}
+test = {features = ["test", "llvm21"]}
