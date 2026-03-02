@@ -129,6 +129,7 @@ c-compiler = ">=1.11.0,<2"
 cxx-compiler = ">=1.11.0,<2"
 toml = ">=0.10.2,<0.11"
 pandoc = ">=3.9,<4"
+ninja = ">=1.13.2,<2"
 
 [feature.test.dependencies]
 python = ">=3.12,<3.14"
@@ -147,12 +148,13 @@ bison = ">=3.8.2,<4"
 
 [feature.build.target.win-64.dependencies]
 m2-bison = ">=3.0.4,<4"
+xonsh = ">=0.22.4,<0.23"
 
 [feature.build.target.linux-aarch64.dependencies]
 bison = ">=3.8.2,<4"
 
 [feature.build.target.win-64.tasks] 
-build = { cmd = "build.bat", cwd = ".", depends-on = "clean" }
+build = { cmd = "cmd /k build.bat", cwd = ".", depends-on = "clean" }
 
 [feature.build.tasks]
 build = { cmd = "./build0.sh && ./build1.sh", cwd = ".", depends-on = "clean" }
