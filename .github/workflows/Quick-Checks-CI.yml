@@ -6,7 +6,6 @@ on:
        - pixi_envfix
      tags:
        - 'v*'
-      
  # push:
  #   branches:
 #      - pixi_envfix
