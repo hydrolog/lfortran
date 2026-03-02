@@ -212,10 +212,12 @@ public:
                 }
             }
             if((all_blocks_nesting ==0 || pragma_in_block) && !do_in_pragma && !omp_region_body.empty() && !(m_body[i]->type == AST::stmtType::Pragma && AST::down_cast<AST::Pragma_t>(m_body[i])->m_type == AST::OMPPragma)) {
-                ASR::stmt_t* tmp_stmt = ASRUtils::STMT(tmp);
-                omp_region_body.push_back(tmp_stmt);
+                if (tmp && ASR::is_a<ASR::stmt_t>(*tmp)) {
+                    ASR::stmt_t* tmp_stmt = ASRUtils::STMT(tmp);
+                    omp_region_body.push_back(tmp_stmt);
+                }
             } else {
-                if (tmp) {
+                if (tmp && ASR::is_a<ASR::stmt_t>(*tmp)) {
                     ASR::stmt_t* tmp_stmt = ASRUtils::STMT(tmp);
                     body.push_back(al, tmp_stmt);
                 } else if (!tmp_vec.empty()) {
@@ -1985,16 +1987,17 @@ public:
                     al, loc, arr_args.p, arr_args.n, arr_type, ASR::arraystorageType::ColMajor)));
             }
             ASR::expr_t *a_tmp_iostat = a_iostat;
-            if (_type == AST::stmtType::Write && a_tmp_iostat == nullptr) {
+            std::string tmp_iostat_name;
+            if (a_tmp_iostat == nullptr) {
                 ASR::ttype_t* int_type =
                     ASRUtils::TYPE(ASR::make_Integer_t(al, loc, 4));
 
-                std::string iostat_name =
+                tmp_iostat_name =
                     current_scope->get_unique_name("lfortran_tmp_iostat");
 
                 ASR::symbol_t* iostat_sym =
                     declare_implicit_variable2(
-                        loc, iostat_name,
+                        loc, tmp_iostat_name,
                         ASRUtils::intent_local,
                         int_type);
 
@@ -2002,7 +2005,25 @@ public:
                     ASRUtils::EXPR(ASR::make_Var_t(al, loc, iostat_sym));
             }
             overload_args.push_back(al, a_tmp_iostat);
-            overload_args.push_back(al, a_iomsg);
+            ASR::expr_t *a_tmp_iomsg = a_iomsg;
+            std::string tmp_iomsg_name;
+            if (a_tmp_iomsg == nullptr) {
+                ASR::ttype_t *str_type = ASRUtils::TYPE(
+                    ASR::make_String_t(
+                        al, loc, 1,
+                        ASRUtils::EXPR(ASR::make_IntegerConstant_t(
+                            al, loc, 0,
+                            ASRUtils::TYPE(ASR::make_Integer_t(al, loc, 4)))),
+                        ASR::string_length_kindType::ExpressionLength,
+                        ASR::string_physical_typeType::DescriptorString));
+                tmp_iomsg_name =
+                    current_scope->get_unique_name("lfortran_tmp_iomsg");
+                ASR::symbol_t *iomsg_sym = declare_implicit_variable2(
+                    loc, tmp_iomsg_name, ASRUtils::intent_local, str_type);
+                a_tmp_iomsg =
+                    ASRUtils::EXPR(ASR::make_Var_t(al, loc, iomsg_sym));
+            }
+            overload_args.push_back(al, a_tmp_iomsg);
             if (ASRUtils::use_overloaded_file_read_write(read_write, overload_args,
                     current_scope, asr, al, read_write_stmt.base.loc,
                     current_function_dependencies, current_module_dependencies,
@@ -2061,10 +2082,17 @@ public:
 
             if (overloaded_stmt != nullptr) {
                 needs_internal_iostat = true;
+            } else {
+                // No DTIO overload found; remove temp variables from scope
+                if (!tmp_iostat_name.empty()) {
+                    current_scope->erase_symbol(tmp_iostat_name);
+                }
+                if (!tmp_iomsg_name.empty()) {
+                    current_scope->erase_symbol(tmp_iomsg_name);
+                }
             }
         }
-        if (_type == AST::stmtType::Write &&
-            needs_internal_iostat &&
+        if (needs_internal_iostat &&
             a_iostat == nullptr) {
 
             ASR::ttype_t* int_type =
@@ -2390,6 +2418,7 @@ public:
         this->visit_expr(*(x.m_value));
         ASR::expr_t* value = ASRUtils::EXPR(tmp);
         ASR::ttype_t* value_type = ASRUtils::expr_type(value);
+        tmp = nullptr;
         bool is_target_pointer = ASRUtils::is_pointer(target_type);
         if (ASR::is_a<ASR::ArraySection_t>(*target)) {
             ASR::ArraySection_t* array_section = ASR::down_cast<ASR::ArraySection_t>(target);
@@ -2407,6 +2436,8 @@ public:
             throw SemanticAbort();
         }
 
+        ASR::ttype_t* target_type_underlying = ASRUtils::type_get_past_pointer(target_type);
+        ASR::ttype_t* value_type_underlying = ASRUtils::type_get_past_pointer(value_type);
         if (ASR::is_a<ASR::StructType_t>(*ASRUtils::extract_type(target_type))
             && ASR::is_a<ASR::StructType_t>(*ASRUtils::extract_type(value_type))) {
             ASR::Struct_t* target_struct = ASR::down_cast<ASR::Struct_t>(
@@ -2420,6 +2451,41 @@ public:
             }
 
             if (ASRUtils::is_derived_type_similar(target_struct, value_struct)) {
+                tmp = ASRUtils::make_Associate_t_util(al, x.base.base.loc, target, value);
+            }
+        } else if (ASR::is_a<ASR::FunctionType_t>(*target_type_underlying) && ASR::is_a<ASR::FunctionType_t>(*value_type_underlying)) {
+            ASR::FunctionType_t* target_func_type = ASR::down_cast<ASR::FunctionType_t>(target_type_underlying);
+            ASR::FunctionType_t* value_func_type = ASR::down_cast<ASR::FunctionType_t>(value_type_underlying);
+            
+            bool target_is_sub = (target_func_type->m_return_var_type == nullptr);
+            bool value_is_sub = (value_func_type->m_return_var_type == nullptr);
+            
+            if (target_is_sub != value_is_sub) {
+                std::string value_name = "";
+                if (ASR::is_a<ASR::IntrinsicElementalFunction_t>(*value) || 
+                    ASR::is_a<ASR::IntrinsicImpureFunction_t>(*value)) {
+                    value_name = "intrinsic function";
+                } else if (ASR::is_a<ASR::Var_t>(*value)) {
+                    ASR::symbol_t* value_sym = ASR::down_cast<ASR::Var_t>(value)->m_v;
+                    value_name = ASRUtils::symbol_name(value_sym);
+                } else if (ASR::is_a<ASR::FunctionCall_t>(*value)) {
+                    ASR::FunctionCall_t* fc = ASR::down_cast<ASR::FunctionCall_t>(value);
+                    if (fc->m_name) {
+                        value_name = ASRUtils::symbol_name(fc->m_name);
+                    }
+                }
+                if (value_name.empty()) {
+                    value_name = "unknown";
+                }
+                std::string expected_type = target_is_sub ? "a subroutine" : "a function";
+                diag.add(Diagnostic(
+                    "Interface mismatch in procedure pointer assignment at (1): '" + value_name + "' is not " + expected_type,
+                    Level::Error, Stage::Semantic, {
+                        Label("(1)",{x.base.base.loc})
+                    }));
+                throw SemanticAbort();
+            }            
+            if (ASRUtils::types_equal(target_type, value_type, target, value)) {
                 tmp = ASRUtils::make_Associate_t_util(al, x.base.base.loc, target, value);
             }
         } else if (ASRUtils::types_equal(target_type, value_type, target, value)) {
@@ -2987,16 +3053,20 @@ public:
                                         alloc_args_vec.p, alloc_args_vec.size(),
                                         stat, errmsg, source)));
             // Pushing assignment statements to source
-            for (size_t i = 0; i < alloc_args_vec.n ; i++) {
-                // Create assignment statement only for non-struct types
-                // All validation was already done above before creating the Allocate ASR node
-                if (!ASR::is_a<ASR::StructType_t>(*ASRUtils::type_get_past_allocatable(ASRUtils::expr_type(alloc_args_vec[i].m_a)))) {
-                    ASR::stmt_t* assign_stmt = ASRUtils::STMT(
-                        ASRUtils::make_Assignment_t_util(
-                            al, x.base.base.loc, alloc_args_vec[i].m_a, source, nullptr, compiler_options.po.realloc_lhs_arrays, false
-                        )
-                    );
-                    current_body->push_back(al, assign_stmt);
+            if (source_cond) {
+                for (size_t i = 0; i < alloc_args_vec.n ; i++) {
+                    // Create assignment statement only for non-struct types
+                    // All validation was already done above before creating the Allocate ASR node
+                    if (!ASR::is_a<ASR::StructType_t>(*ASRUtils::type_get_past_allocatable(ASRUtils::expr_type(alloc_args_vec[i].m_a)))) {
+                        ASRUtils::ExprStmtDuplicator expr_duplicator(al);
+                        ASR::expr_t* source_copy = expr_duplicator.duplicate_expr(source);
+                        ASR::stmt_t* assign_stmt = ASRUtils::STMT(
+                            ASRUtils::make_Assignment_t_util(
+                                al, x.base.base.loc, alloc_args_vec[i].m_a, source_copy, nullptr, compiler_options.po.realloc_lhs_arrays, false
+                            )
+                        );
+                        current_body->push_back(al, assign_stmt);
+                    }
                 }
             }
             tmp = nullptr;
@@ -3269,15 +3339,19 @@ public:
                         ASR::stmt_t* assoc_stmt = ASRUtils::STMT(ASRUtils::make_Associate_t_util(al, x.base.base.loc, assoc_var, cast_expr));
                         rank_body.push_back(al, assoc_stmt);
                     }
-                    transform_stmts(rank_body, rank_expr->n_body, rank_expr->m_body);
+                    // Create the Block before transform_stmts so that
+                    // current_scope->asr_owner is set. This ensures
+                    // ADD_ASR_DEPENDENCIES correctly walks up the scope chain
+                    // and records dependencies for calls inside select rank.
                     std::string block_name = parent_scope->get_unique_name("~select_rank_block_");
-                    ASR::symbol_t* block_sym = ASR::down_cast<ASR::symbol_t>(ASR::make_Block_t(al, 
+                    ASR::symbol_t* block_sym = ASR::down_cast<ASR::symbol_t>(ASR::make_Block_t(al,
                         rank_expr->base.base.loc, current_scope, s2c(al, block_name),
                         nullptr, 0));
                     ASR::Block_t* block_t = ASR::down_cast<ASR::Block_t>(block_sym);
+                    parent_scope->add_symbol(block_name, block_sym);
+                    transform_stmts(rank_body, rank_expr->n_body, rank_expr->m_body);
                     block_t->m_body = rank_body.p;
                     block_t->n_body = rank_body.size();
-                    parent_scope->add_symbol(block_name, block_sym);
                     Vec<ASR::stmt_t*> block_call_stmt; block_call_stmt.reserve(al, 1);
                     block_call_stmt.push_back(al, ASRUtils::STMT(ASR::make_BlockCall_t(al, rank_expr->base.base.loc, -1, block_sym)));
                     select_rank_body.push_back(al, ASR::down_cast<ASR::rank_stmt_t>(ASR::make_RankExpr_t(al, rank_expr->base.base.loc,
@@ -6023,10 +6097,25 @@ public:
 
     void visit_SubroutineCall(const AST::SubroutineCall_t &x) {
         std::string sub_name = to_lower(x.m_name);
-        ASR::asr_t* intrinsic_subroutine = intrinsic_subroutine_as_node(x, sub_name);
-        if( intrinsic_subroutine ) {
-            tmp = intrinsic_subroutine;
-            return;
+        // Only treat as intrinsic if no user-defined callable procedure
+        // with this name exists in scope (user procedures shadow intrinsics)
+        bool user_procedure_found = false;
+        {
+            ASR::symbol_t *sym = current_scope->resolve_symbol(sub_name);
+            if (sym) {
+                ASR::symbol_t *s = ASRUtils::symbol_get_past_external(sym);
+                if (ASR::is_a<ASR::Function_t>(*s) ||
+                    ASR::is_a<ASR::GenericProcedure_t>(*s)) {
+                    user_procedure_found = true;
+                }
+            }
+        }
+        if (!user_procedure_found) {
+            ASR::asr_t* intrinsic_subroutine = intrinsic_subroutine_as_node(x, sub_name);
+            if( intrinsic_subroutine ) {
+                tmp = intrinsic_subroutine;
+                return;
+            }
         }
         if (x.n_temp_args > 0) {
             ASR::symbol_t *owner_sym = ASR::down_cast<ASR::symbol_t>(current_scope->asr_owner);
@@ -6538,7 +6627,8 @@ public:
                         ASR::ttype_t* param_type = v->m_type;
                         // Check if parameter expects a procedure type
                         if (ASR::is_a<ASR::FunctionType_t>(*ASRUtils::type_get_past_array(param_type))){
-                            if (!ASR::is_a<ASR::FunctionType_t>(*ASRUtils::type_get_past_array(passed_type))){
+                            if (!ASR::is_a<ASR::FunctionType_t>(*ASRUtils::type_get_past_pointer(
+                                    ASRUtils::type_get_past_array(passed_type)))){
                                 std::string passed_str =ASRUtils::type_to_str_fortran_expr(passed_type, nullptr);
                                 diag.add(diag::Diagnostic(
                                     "Type mismatch in argument `" + std::string(v->m_name) +
@@ -6615,7 +6705,11 @@ public:
                                                     iface_func->m_function_signature);
                                                 iface_ft->m_arg_types = passed_ft->m_arg_types;
                                                 iface_ft->n_arg_types = passed_ft->n_arg_types;
-                                                v->m_type = iface_func->m_function_signature;
+                                                ASR::ttype_t* new_type = iface_func->m_function_signature;
+                                                if (ASR::is_a<ASR::Pointer_t>(*v->m_type)) {
+                                                    new_type = ASRUtils::TYPE(ASR::make_Pointer_t(al, v->base.base.loc, new_type));
+                                                }
+                                                v->m_type = new_type;
                                                 ASR::FunctionType_t* callee_ft = ASR::down_cast<ASR::FunctionType_t>(
                                                     f->m_function_signature);
                                                 callee_ft->m_arg_types[i + offset] = v->m_type;

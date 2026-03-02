@@ -46,6 +46,18 @@ public:
 
     ASR::ttype_t *tmp_type;
 
+    static bool is_equivalence_declaration(AST::unit_decl2_t* decl) {
+        if (AST::is_a<AST::Declaration_t>(*decl)) {
+            AST::Declaration_t* d = AST::down_cast<AST::Declaration_t>(decl);
+            for (size_t i = 0; i < d->n_attributes; i++) {
+                if (AST::is_a<AST::AttrEquivalence_t>(*d->m_attributes[i])) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     SymbolTableVisitor(Allocator &al, SymbolTable *symbol_table,
         diag::Diagnostics &diagnostics, CompilerOptions &compiler_options,
         std::map<uint64_t, std::map<std::string, ASR::ttype_t*>> &implicit_mapping,
@@ -307,7 +319,38 @@ public:
                                                 nullptr,
                                                 0,
                                                 false, false, false);
-            std::string unsupported_sym_name = import_all(m, true);
+            std::set<std::string> submodule_proc_names;
+            for (size_t i = 0; i < x.n_contains; i++) {
+                AST::program_unit_t *pu = x.m_contains[i];
+                if (AST::is_a<AST::Procedure_t>(*pu)) {
+                    AST::Procedure_t *proc = AST::down_cast<AST::Procedure_t>(pu);
+                    submodule_proc_names.insert(to_lower(proc->m_name));
+                } else if (AST::is_a<AST::Function_t>(*pu)) {
+                    AST::Function_t *fn = AST::down_cast<AST::Function_t>(pu);
+                    for (size_t j = 0; j < fn->n_attributes; j++) {
+                        if (AST::is_a<AST::SimpleAttribute_t>(*fn->m_attributes[j])) {
+                            AST::SimpleAttribute_t *attr = AST::down_cast<AST::SimpleAttribute_t>(fn->m_attributes[j]);
+                            if (attr->m_attr == AST::simple_attributeType::AttrModule) {
+                                submodule_proc_names.insert(to_lower(fn->m_name));
+                                break;
+                            }
+                        }
+                    }
+                } else if (AST::is_a<AST::Subroutine_t>(*pu)) {
+                    AST::Subroutine_t *sub = AST::down_cast<AST::Subroutine_t>(pu);
+                    for (size_t j = 0; j < sub->n_attributes; j++) {
+                        if (AST::is_a<AST::SimpleAttribute_t>(*sub->m_attributes[j])) {
+                            AST::SimpleAttribute_t *attr = AST::down_cast<AST::SimpleAttribute_t>(sub->m_attributes[j]);
+                            if (attr->m_attr == AST::simple_attributeType::AttrModule) {
+                                submodule_proc_names.insert(to_lower(sub->m_name));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            std::string unsupported_sym_name = import_all(m, true, {},
+                submodule_proc_names);
             if( !unsupported_sym_name.empty() ) {
                 throw LCompilersException("'" + unsupported_sym_name + "' is not supported yet for declaring with use.");
             }
@@ -360,6 +403,7 @@ public:
         add_overloaded_procedures();
         add_class_procedures();
         add_generic_class_procedures();
+        resolve_proc_pointer_placeholders();
         evaluate_postponed_calls_to_genericProcedure();
         try {
             add_assignment_procedures();
@@ -501,6 +545,7 @@ public:
             }
         }
         for (size_t i=0; i<x.n_decl; i++) {
+            if (is_equivalence_declaration(x.m_decl[i])) continue;
             if(AST::is_a<AST::Declaration_t>(*x.m_decl[i])) {
                 AST::Declaration_t* decl = AST::down_cast<AST::Declaration_t>(x.m_decl[i]);
                 if(decl->m_vartype) {
@@ -527,6 +572,14 @@ public:
                     }
                 }
             }
+            try {
+                visit_unit_decl2(*x.m_decl[i]);
+            } catch (SemanticAbort &e) {
+                if ( !compiler_options.continue_compilation ) throw e;
+            }
+        }
+        for (size_t i=0; i<x.n_decl; i++) {
+            if (!is_equivalence_declaration(x.m_decl[i])) continue;
             try {
                 visit_unit_decl2(*x.m_decl[i]);
             } catch (SemanticAbort &e) {
@@ -578,6 +631,7 @@ public:
         // Build : Functions --> GenericProcedure(Interface) -> funcCall expression to GenericProcedure.
         add_generic_procedures();
         evaluate_postponed_calls_to_genericProcedure();
+        resolve_proc_pointer_placeholders();
         for (auto &[name, placeholder_sym] : pending_proc_placeholders) {
              ASR::symbol_t *current_sym = current_scope->resolve_symbol(name);
              if (current_sym == placeholder_sym) {
@@ -924,17 +978,24 @@ public:
 
     void visit_Procedure(const AST::Procedure_t &x) {
         ASR::Module_t* interface_module = ASR::down_cast<ASR::Module_t>(current_module_sym);
-        if (interface_module->m_parent_module) {
-            SymbolTable* tu_symtab = current_scope->get_global_scope();
-            interface_module = ASR::down_cast<ASR::Module_t>(tu_symtab->get_symbol(std::string(interface_module->m_parent_module)));
-        }
+        SymbolTable* tu_symtab = current_scope->get_global_scope();
+        std::string proc_name = to_lower(std::string(x.m_name));
 
         ASR::Function_t* proc_interface = nullptr;
-        for (auto &item : interface_module->m_symtab->get_scope()) {
-            if (ASR::is_a<ASR::Function_t>(*item.second) && (std::string(ASR::down_cast<ASR::Function_t>(item.second)->m_name) == to_lower(std::string(x.m_name)))) {
-                proc_interface = ASR::down_cast<ASR::Function_t>(item.second);
-                break;
+        while (proc_interface == nullptr) {
+            if (interface_module->m_parent_module) {
+                interface_module = ASR::down_cast<ASR::Module_t>(
+                    tu_symtab->get_symbol(std::string(interface_module->m_parent_module)));
             }
+            for (auto &item : interface_module->m_symtab->get_scope()) {
+                if (ASR::is_a<ASR::Function_t>(*item.second) &&
+                        std::string(ASR::down_cast<ASR::Function_t>(
+                            item.second)->m_name) == proc_name) {
+                    proc_interface = ASR::down_cast<ASR::Function_t>(item.second);
+                    break;
+                }
+            }
+            if (!interface_module->m_parent_module) break;
         }
 
         if (proc_interface == nullptr) {
@@ -1147,6 +1208,7 @@ public:
         }
         Vec<size_t> procedure_decl_indices; procedure_decl_indices.reserve(al, 0);
         for (size_t i=0; i<x.n_decl; i++) {
+            if (is_equivalence_declaration(x.m_decl[i])) continue;
             is_Function = true;
             if(x.m_decl[i]->type == AST::unit_decl2Type::Declaration) {
                 AST::Declaration_t decl = (const AST::Declaration_t &)*x.m_decl[i];
@@ -1168,7 +1230,7 @@ public:
                     LCOMPILERS_ASSERT(type);
 
                     if(type && type->m_type == AST::decl_typeType::TypeProcedure &&
-                           type->m_name == sym_name) {
+                           type->m_name && type->m_name == sym_name) {
                         procedure_decl_indices.push_back(al, i);
                         continue;
                     }
@@ -1180,6 +1242,16 @@ public:
                 } catch (SemanticAbort &e) {
                     if ( !compiler_options.continue_compilation ) throw e;
                 }
+            }
+            is_Function = false;
+        }
+        for (size_t i=0; i<x.n_decl; i++) {
+            if (!is_equivalence_declaration(x.m_decl[i])) continue;
+            is_Function = true;
+            try {
+                visit_unit_decl2(*x.m_decl[i]);
+            } catch (SemanticAbort &e) {
+                if ( !compiler_options.continue_compilation ) throw e;
             }
             is_Function = false;
         }
@@ -1578,6 +1650,7 @@ public:
         }
         Vec<size_t> procedure_decl_indices; procedure_decl_indices.reserve(al, 0);
         for (size_t i=0; i<x.n_decl; i++) {
+            if (is_equivalence_declaration(x.m_decl[i])) continue;
             is_Function = true;
             if(x.m_decl[i]->type == AST::unit_decl2Type::Declaration) {
                 AST::Declaration_t decl = (const AST::Declaration_t &)*x.m_decl[i];
@@ -1607,6 +1680,12 @@ public:
             if (!AST::is_a<AST::Require_t>(*x.m_decl[i])) {
                 visit_unit_decl2(*x.m_decl[i]);
             }
+            is_Function = false;
+        }
+        for (size_t i=0; i<x.n_decl; i++) {
+            if (!is_equivalence_declaration(x.m_decl[i])) continue;
+            is_Function = true;
+            visit_unit_decl2(*x.m_decl[i]);
             is_Function = false;
         }
         process_simd_variables();
@@ -1774,8 +1853,14 @@ public:
                         throw SemanticAbort();
 
                     }
-                    type = ASRUtils::make_StructType_t_util(al, x.base.base.loc, v, true);
-                    type_decl = v;
+                    if (ASRUtils::is_c_ptr(v, derived_type_name)) {
+                        type = ASRUtils::TYPE(ASR::make_CPtr_t(al, x.base.base.loc));
+                    } else if (ASRUtils::is_c_funptr(v, derived_type_name)) {
+                        type = ASRUtils::TYPE(ASR::make_CPtr_t(al, x.base.base.loc));
+                    } else {
+                        type = ASRUtils::make_StructType_t_util(al, x.base.base.loc, v, true);
+                        type_decl = v;
+                    }
                     break;
                 }
                 default :
@@ -1905,6 +1990,23 @@ public:
                             throw SemanticAbort();
                         }
                     }
+
+                    if (is_placeholder) {
+                        // Update the placeholder's FunctionType in-place so that
+                        // struct member variables still referencing it get the
+                        // correct function signature (e.g., return type).
+                        ASR::FunctionType_t* placeholder_sig = ASR::down_cast<ASR::FunctionType_t>(
+                            f2->m_function_signature);
+                        ASR::FunctionType_t* real_sig = ASR::down_cast<ASR::FunctionType_t>(
+                            func->m_function_signature);
+                        placeholder_sig->m_arg_types = real_sig->m_arg_types;
+                        placeholder_sig->n_arg_types = real_sig->n_arg_types;
+                        placeholder_sig->m_return_var_type = real_sig->m_return_var_type;
+                        placeholder_sig->m_elemental = real_sig->m_elemental;
+                        placeholder_sig->m_pure = real_sig->m_pure;
+                        placeholder_sig->m_module = real_sig->m_module;
+                    }
+
                     parent_scope->erase_symbol(sym_name);
                 } else {
                     diag.add(diag::Diagnostic(
@@ -3173,6 +3275,28 @@ public:
             return true;
         }
         return false;
+    }
+
+    void resolve_proc_pointer_placeholders() {
+        // After all interfaces/functions have been processed, update
+        // m_type_declaration for procedure pointer variables inside structs
+        // that still reference a placeholder Function_t.
+        for (auto &[name, placeholder_sym] : pending_proc_placeholders) {
+            ASR::symbol_t *real_sym = current_scope->resolve_symbol(name);
+            for (auto &[sym_name, sym] : current_scope->get_scope()) {
+                if (ASR::is_a<ASR::Struct_t>(*sym)) {
+                    ASR::Struct_t* struct_def = ASR::down_cast<ASR::Struct_t>(sym);
+                    for (auto &[var_name, var_sym] : struct_def->m_symtab->get_scope()) {
+                        if (ASR::is_a<ASR::Variable_t>(*var_sym)) {
+                            ASR::Variable_t* var = ASR::down_cast<ASR::Variable_t>(var_sym);
+                            if (var->m_type_declaration == placeholder_sym) {
+                                var->m_type_declaration = real_sym;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     void add_class_procedures() {

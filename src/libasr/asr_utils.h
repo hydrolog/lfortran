@@ -170,7 +170,11 @@ Returns true, when the symbol 'f' is a procedure variable
 static inline bool is_symbol_procedure_variable(ASR::symbol_t* f) {
     if (ASR::is_a<ASR::Variable_t>(*f)) {
         ASR::Variable_t* v = ASR::down_cast<ASR::Variable_t>(f);
-        return ASR::is_a<ASR::FunctionType_t>(*v->m_type);
+        ASR::ttype_t* t = v->m_type;
+        if (ASR::is_a<ASR::Pointer_t>(*t)) {
+            t = ASR::down_cast<ASR::Pointer_t>(t)->m_type;
+        }
+        return ASR::is_a<ASR::FunctionType_t>(*t);
     }
     return false;
 }
@@ -178,7 +182,11 @@ static inline bool is_symbol_procedure_variable(ASR::symbol_t* f) {
 static inline bool is_symbol_procedure_variable(const ASR::symbol_t* f) {
     if (ASR::is_a<ASR::Variable_t>(*f)) {
         ASR::Variable_t* v = ASR::down_cast<ASR::Variable_t>(f);
-        return ASR::is_a<ASR::FunctionType_t>(*v->m_type);
+        ASR::ttype_t* t = v->m_type;
+        if (ASR::is_a<ASR::Pointer_t>(*t)) {
+            t = ASR::down_cast<ASR::Pointer_t>(t)->m_type;
+        }
+        return ASR::is_a<ASR::FunctionType_t>(*t);
     }
     return false;
 }
@@ -199,8 +207,11 @@ static inline ASR::FunctionType_t* get_FunctionType(ASR::symbol_t* x) {
         func_type = ASR::down_cast<ASR::FunctionType_t>(
             ASR::down_cast<ASR::Function_t>(a_name_)->m_function_signature);
     } else if( ASR::is_a<ASR::Variable_t>(*a_name_) ) {
-        func_type = ASR::down_cast<ASR::FunctionType_t>(
-            ASR::down_cast<ASR::Variable_t>(a_name_)->m_type);
+        ASR::ttype_t* var_type = ASR::down_cast<ASR::Variable_t>(a_name_)->m_type;
+        if (ASR::is_a<ASR::Pointer_t>(*var_type)) {
+            var_type = ASR::down_cast<ASR::Pointer_t>(var_type)->m_type;
+        }
+        func_type = ASR::down_cast<ASR::FunctionType_t>(var_type);
     } else if( ASR::is_a<ASR::StructMethodDeclaration_t>(*a_name_) ) {
         ASR::Function_t* func = ASR::down_cast<ASR::Function_t>(
             ASRUtils::symbol_get_past_external(
@@ -940,6 +951,9 @@ static inline std::string type_to_str_fortran_symbol(const ASR::ttype_t* t,
             return "tuple";
         }
         case ASR::ttypeType::StructType: {
+            if (struct_sym == nullptr) {
+                return "derived_type";
+            }
             return ASRUtils::symbol_name(struct_sym);
         }
         case ASR::ttypeType::EnumType: {
@@ -1513,6 +1527,49 @@ static inline bool is_variable(ASR::expr_t* a_value) {
         default: {
             return false;
         }
+    }
+}
+
+// Returns true if expression can be safely used as an actual argument for
+// INTENT(OUT/INOUT) dummy arguments.
+static inline bool is_modifiable_actual_argument_expr(ASR::expr_t* a_value) {
+    if (a_value == nullptr) {
+        return false;
+    }
+    switch (a_value->type) {
+        case ASR::exprType::Var: {
+            ASR::Variable_t* variable_t = ASRUtils::EXPR2VAR(a_value);
+            return variable_t->m_storage != ASR::storage_typeType::Parameter;
+        }
+        case ASR::exprType::ArrayItem: {
+            ASR::ArrayItem_t* a_item = ASR::down_cast<ASR::ArrayItem_t>(a_value);
+            return is_modifiable_actual_argument_expr(a_item->m_v);
+        }
+        case ASR::exprType::StringItem:
+        case ASR::exprType::StringSection:
+        case ASR::exprType::ArraySection:
+        case ASR::exprType::StructInstanceMember:
+        case ASR::exprType::IntrinsicArrayFunction:
+        case ASR::exprType::ListItem: {
+            return true;
+        }
+        case ASR::exprType::Cast: {
+            ASR::Cast_t* cast = ASR::down_cast<ASR::Cast_t>(a_value);
+            return is_modifiable_actual_argument_expr(cast->m_arg);
+        }
+        case ASR::exprType::ArrayPhysicalCast: {
+            ASR::ArrayPhysicalCast_t* cast = ASR::down_cast<ASR::ArrayPhysicalCast_t>(a_value);
+            return is_modifiable_actual_argument_expr(cast->m_arg);
+        }
+        case ASR::exprType::StringPhysicalCast: {
+            ASR::StringPhysicalCast_t* cast = ASR::down_cast<ASR::StringPhysicalCast_t>(a_value);
+            return is_modifiable_actual_argument_expr(cast->m_arg);
+        }
+        case ASR::exprType::DictItem: {
+            return true;
+        }
+        default:
+            return false;
     }
 }
 
@@ -4116,6 +4173,17 @@ inline bool types_equal(ASR::ttype_t *a, ASR::ttype_t *b, ASR::expr_t* a_expr, A
             return true;
         }
     }
+    // Assumed-rank arrays (dimension(..)) accept any rank, including scalar
+    if (check_for_dimensions) {
+        if (ASR::is_a<ASR::Array_t>(*b) && is_assumed_rank_array(b)) {
+            return types_equal(a, ASR::down_cast<ASR::Array_t>(b)->m_type,
+                               a_expr, b_expr, false);
+        }
+        if (ASR::is_a<ASR::Array_t>(*a) && is_assumed_rank_array(a)) {
+            return types_equal(ASR::down_cast<ASR::Array_t>(a)->m_type, b,
+                               a_expr, b_expr, false);
+        }
+    }
     if (a->type == b->type) {
         // TODO: check dims
         // TODO: check all types
@@ -5051,9 +5119,42 @@ class ReplaceArgVisitor: public ASR::BaseExprReplacer<ReplaceArgVisitor> {
                 ASRUtils::insert_module_dependency(new_es, al, current_module_dependencies);
                 x->m_name = new_es;
                 if( x->m_original_name ) {
-                    ASR::symbol_t* x_original_name = current_scope->resolve_symbol(ASRUtils::symbol_name(x->m_original_name));
+                    std::string orig_name = ASRUtils::symbol_name(x->m_original_name);
+                    ASR::symbol_t* x_original_name = current_scope->resolve_symbol(orig_name);
                     if( x_original_name ) {
                         x->m_original_name = x_original_name;
+                    } else {
+                        // The original_name (e.g. a GenericProcedure) is not
+                        // in the current scope. Create an ExternalSymbol so
+                        // that modfile serialisation can find the symbol table.
+                        ASR::symbol_t* orig_sym = x->m_original_name;
+                        // Resolve through any ExternalSymbol chain to get the
+                        // actual symbol and its owning module.
+                        if (ASR::is_a<ASR::ExternalSymbol_t>(*orig_sym)) {
+                            ASR::ExternalSymbol_t* es = ASR::down_cast<ASR::ExternalSymbol_t>(orig_sym);
+                            orig_sym = es->m_external;
+                        }
+                        SymbolTable* orig_symtab = ASRUtils::symbol_parent_symtab(orig_sym);
+                        if( orig_symtab->asr_owner &&
+                            ASR::is_a<ASR::symbol_t>(*orig_symtab->asr_owner) &&
+                            ASR::is_a<ASR::Module_t>(*ASR::down_cast<ASR::symbol_t>(orig_symtab->asr_owner)) ) {
+                            ASR::Module_t* orig_mod = ASR::down_cast<ASR::Module_t>(
+                                ASR::down_cast<ASR::symbol_t>(orig_symtab->asr_owner));
+                            std::string unique_name = current_scope->get_unique_name(orig_name, false);
+                            Str s2; s2.from_str_view(unique_name);
+                            char *unique_name_c = s2.c_str(al);
+                            ASR::symbol_t* new_orig = ASR::down_cast<ASR::symbol_t>(
+                                ASR::make_ExternalSymbol_t(
+                                    al, orig_sym->base.loc,
+                                    current_scope, unique_name_c,
+                                    orig_sym,
+                                    orig_mod->m_name, nullptr, 0,
+                                    ASRUtils::symbol_name(orig_sym),
+                                    ASR::accessType::Private));
+                            current_scope->add_symbol(unique_name, new_orig);
+                            ASRUtils::insert_module_dependency(new_orig, al, current_module_dependencies);
+                            x->m_original_name = new_orig;
+                        }
                     }
                 }
                 return;
@@ -5476,7 +5577,7 @@ class SymbolDuplicator {
         new_body.reserve(al, block_t->n_body);
         ASRUtils::ExprStmtDuplicator node_duplicator(al);
         node_duplicator.allow_procedure_calls = true;
-        node_duplicator.allow_reshape = false;
+        node_duplicator.allow_reshape = true;
         for( size_t i = 0; i < block_t->n_body; i++ ) {
             node_duplicator.success = true;
             ASR::stmt_t* new_stmt = node_duplicator.duplicate_stmt(block_t->m_body[i]);
@@ -6837,61 +6938,18 @@ static inline ASR::asr_t* make_print_t_util(Allocator& al, const Location& loc,
 
 template <typename SemanticAbort>
 inline void check_simple_intent_mismatch(diag::Diagnostics &diag, ASR::Function_t* f, const Vec<ASR::call_arg_t>& args) {
-    
     for (size_t i = 0; i < args.size(); i++) {
         ASR::expr_t* passed_arg_expr = args[i].m_value;
-        
-        // First, handle our new check for non-variable expressions with INTENT(OUT/INOUT)
+
         if (passed_arg_expr && i < f->n_args) {
-            // Check for INTENT(OUT/INOUT) - but safely
-            // We need to check if this is a regular argument (not a procedure)
-            // by looking at whether we can safely call EXPR2VAR
             if (ASR::is_a<ASR::Var_t>(*f->m_args[i])) {
                 ASR::symbol_t* sym = ASR::down_cast<ASR::Var_t>(f->m_args[i])->m_v;
                 if (ASR::is_a<ASR::Variable_t>(*sym)) {
                     ASR::Variable_t* callee_param = ASR::down_cast<ASR::Variable_t>(sym);
-                    // Check if it's not a procedure (procedures don't have regular intent)
                     if (!ASR::is_a<ASR::FunctionType_t>(*callee_param->m_type)) {
-                        if (callee_param->m_intent == ASR::intentType::Out ||
-                            callee_param->m_intent == ASR::intentType::InOut) {
-                            
-                            // For intent(out) and intent(inout), the actual argument must be a variable
-                            bool is_valid_variable = false;
-                            switch (passed_arg_expr->type) {
-                                case ASR::exprType::Var:
-                                case ASR::exprType::ArrayItem:
-                                case ASR::exprType::ArraySection:
-                                case ASR::exprType::StringItem:
-                                case ASR::exprType::StringSection:
-                                case ASR::exprType::StructInstanceMember:
-                                case ASR::exprType::IntrinsicArrayFunction:
-                                case ASR::exprType::ListItem:
-                                case ASR::exprType::Cast:
-                                    // IntrinsicArrayFunction and ListItem (_lfortran_get_item) return modifiable references
-                                    is_valid_variable = true;
-                                    break;
-                                case ASR::exprType::FunctionCall: {
-                                    // Only allow specific intrinsic functions that return modifiable references
-                                    ASR::FunctionCall_t* func_call = ASR::down_cast<ASR::FunctionCall_t>(passed_arg_expr);
-                                    if (func_call->m_name) {
-                                        ASR::symbol_t* func_sym = func_call->m_name;
-                                        if (ASR::is_a<ASR::Function_t>(*func_sym)) {
-                                            ASR::Function_t* func = ASR::down_cast<ASR::Function_t>(func_sym);
-                                            std::string func_name = func->m_name;
-                                            // Allow list access functions that return modifiable references
-                                            if (func_name == "_lfortran_get_item") {
-                                                is_valid_variable = true;
-                                            }
-                                        }
-                                    }
-                                    break;
-                                }
-                                default:
-                                    is_valid_variable = false;
-                                    break;
-                            }
-                            
-                            if (!is_valid_variable) {
+                        if ((callee_param->m_intent == ASR::intentType::Out ||
+                             callee_param->m_intent == ASR::intentType::InOut)) {
+                            if (!ASRUtils::is_modifiable_actual_argument_expr(passed_arg_expr)) {
                                 diag.add(diag::Diagnostic(
                                     "Non-variable expression in variable definition context "
                                     "(actual argument to INTENT = OUT/INOUT)",
@@ -6905,15 +6963,12 @@ inline void check_simple_intent_mismatch(diag::Diagnostics &diag, ASR::Function_
                 }
             }
         }
-        
-        // Now handle the original intent(in) -> intent(out/inout) mismatch check
-        // This only applies when passed_arg_expr is a Var_t
+
         if (passed_arg_expr && ASR::is_a<ASR::Var_t>(*passed_arg_expr)) {
             ASR::symbol_t* passed_sym = ASR::down_cast<ASR::Var_t>(passed_arg_expr)->m_v;
             if (ASR::is_a<ASR::Variable_t>(*passed_sym)) {
                 ASR::Variable_t* passed_var = ASR::down_cast<ASR::Variable_t>(passed_sym);
                 if (passed_var->m_intent == ASR::intentType::In) {
-                   
                     if (i < f->n_args) {
                         ASR::Variable_t* callee_param = ASRUtils::EXPR2VAR(f->m_args[i]);
                         if (callee_param->m_intent == ASR::intentType::Out ||
@@ -7338,7 +7393,7 @@ static inline ASR::asr_t* make_SubroutineCall_t_util(
 
     if( a_dt && ASR::is_a<ASR::Variable_t>(
         *ASRUtils::symbol_get_past_external(a_name)) &&
-        ASR::is_a<ASR::FunctionType_t>(*ASRUtils::symbol_type(a_name)) &&
+        ASR::is_a<ASR::FunctionType_t>(*ASRUtils::type_get_past_pointer(ASRUtils::symbol_type(a_name))) &&
         !ASR::is_a<ASR::StructInstanceMember_t>(*a_dt) ) {
         a_dt = ASRUtils::EXPR(ASR::make_StructInstanceMember_t(al, a_loc,
             a_dt, a_name, ASRUtils::duplicate_type(al, ASRUtils::symbol_type(a_name)), nullptr));
