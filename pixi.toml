@@ -151,6 +151,9 @@ m2-bison = ">=3.0.4,<4"
 [feature.build.target.linux-aarch64.dependencies]
 bison = ">=3.8.2,<4"
 
+[feature.build.target.win-64.tasks] 
+build = { cmd = "build.bat", cwd = ".", depends-on = "clean" }
+
 [feature.build.tasks]
 build = { cmd = "./build0.sh && ./build1.sh", cwd = ".", depends-on = "clean" }
 install-llvm21 = { cmd = "pixi install -e llvm21 && pixi shell -e llvm21"}
