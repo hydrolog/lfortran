@@ -3,13 +3,13 @@ name: Exhaustive checks
 on:
   push:
     branches:
-      - main
+      - pixi_envfix
     tags:
       - 'v*'
   pull_request:
     types: [labeled, unlabeled, synchronize]
     branches:
-      - main
+      - pixi_envfix
 
 # For a PR #7488 against main branch, the `group` will become: CI-{{ 7488 || github.sha }}
 # which eventually evaluates to: CI-7488 and 'sha' isn't used.
