@@ -1,5 +1,10 @@
 del CMakeCache.txt
 
+set LFORTRAN_CMAKE_GENERATOR=Ninja
+set WIN=1
+set MACOS=0
+set ENABLE_RUNTIME_STACKTRACE=no
+
 cmake -S %cd% -B %cd% -G Ninja ^
  -DCMAKE_BUILD_TYPE=Release ^
  -DWITH_LLVM=yes ^

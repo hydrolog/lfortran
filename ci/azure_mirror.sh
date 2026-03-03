@@ -5,14 +5,14 @@ set -x
 
 mkdir ~/.ssh
 chmod 700 ~/.ssh
-ssh-keyscan ssh.dev.azure.com >> ~/.ssh/known_hosts
+ssh-keyscan ssh.dev.azure.com >>~/.ssh/known_hosts
 
 eval "$(ssh-agent -s)"
 
 set +x
 if [[ "${SSH_PRIVATE_KEY_AZURE}" == "" ]]; then
-    echo "Error: SSH_PRIVATE_KEY_AZURE is empty."
-    exit 1
+  echo "Error: SSH_PRIVATE_KEY_AZURE is empty."
+  exit 1
 fi
 # Generate the private/public key pair using:
 #
@@ -36,4 +36,4 @@ git checkout $CI_COMMIT_SHA
 git checkout -b ${bname}
 git show-ref
 git remote -v
-git push git@ssh.dev.azure.com:v3/lfortran/lfortran/lfortran +${bname}:${bname} --tags
+git push git@ssh.dev.azure.com:v3/lfortran/hydrolog/lfortran +${bname}:${bname} --tags

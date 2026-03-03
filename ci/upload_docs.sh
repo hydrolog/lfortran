@@ -6,26 +6,26 @@ set -x
 git_ref=${GITHUB_REF}
 
 if [[ $git_ref != "refs/heads/main" ]]; then
-    # Development version
-    dest_branch=${git_ref}
-    deploy_repo="git@gitlab.com:lfortran/web/docs.lfortran.org-testing.git"
+  # Development version
+  dest_branch=${git_ref}
+  deploy_repo="git@gitlab.com:hydrolog/lfortran/web/docs.lfortran.org-testing.git"
 else
-    # Release version
-    dest_branch="master"
-    deploy_repo="git@github.com:lfortran/docs.lfortran.org.git"
+  # Release version
+  dest_branch="master"
+  deploy_repo="git@github.com:hydrolog/lfortran/docs.lfortran.org.git"
 fi
 
 mkdir ~/.ssh
 chmod 700 ~/.ssh
-ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
-ssh-keyscan github.com >> ~/.ssh/known_hosts
+ssh-keyscan gitlab.com >>~/.ssh/known_hosts
+ssh-keyscan github.com >>~/.ssh/known_hosts
 
 eval "$(ssh-agent -s)"
 
 set +x
 if [[ "${SSH_PRIVATE_KEY_DOCS}" == "" ]]; then
-    echo "Note: SSH_PRIVATE_KEY_DOCS is empty, skipping..."
-    exit 0
+  echo "Note: SSH_PRIVATE_KEY_DOCS is empty, skipping..."
+  exit 0
 fi
 # Generate the private/public key pair using:
 #
@@ -42,8 +42,7 @@ fi
 ssh-add <(echo "$SSH_PRIVATE_KEY_DOCS" | base64 -d)
 set -x
 
-
-D=`pwd`
+D=$(pwd)
 
 mkdir $HOME/repos
 cd $HOME/repos
@@ -52,7 +51,7 @@ git clone ${deploy_repo} docs-deploy
 cd docs-deploy
 rm -rf docs
 mkdir docs
-echo "docs.lfortran.org" > docs/CNAME
+echo "docs.lfortran.org" >docs/CNAME
 touch docs/.nojekyll
 cp -r $D/site/* docs/
 

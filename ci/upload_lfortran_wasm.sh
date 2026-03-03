@@ -3,8 +3,8 @@
 set -e
 set -x
 
-deploy_repo_pull="https://github.com/lfortran/wasm_builds.git"
-deploy_repo_push="git@github.com:lfortran/wasm_builds.git"
+deploy_repo_pull="https://github.com/hydrolog/lfortran/wasm_builds.git"
+deploy_repo_push="git@github.com:/hydrolog/lfortran/wasm_builds.git"
 
 git_hash=$(git rev-parse --short "$GITHUB_SHA")
 git_ref=${GITHUB_REF}
@@ -13,27 +13,27 @@ git_ref=${GITHUB_REF}
 # - Main branch pushes go to "dev" (debug builds)
 # - Tags starting with 'v' go to "release" (release builds)
 if [[ ${git_ref} == "refs/heads/main" ]]; then
-    dest_dir="dev"
-    echo "Main branch detected: using dest_dir=${dest_dir}"
+  dest_dir="dev"
+  echo "Main branch detected: using dest_dir=${dest_dir}"
 elif [[ ${git_ref:0:11} == "refs/tags/v" ]]; then
-    dest_dir="release"
-    echo "Release tag detected: using dest_dir=${dest_dir}"
+  dest_dir="release"
+  echo "Release tag detected: using dest_dir=${dest_dir}"
 else
-    # We are either on a non-main branch or tagged with a tag that does
-    # not start with v*. We run the script for testing but do not upload.
-    dest_dir="release"
-    echo "Not a main branch, not tagged with v*, using dest_dir=${dest_dir} for testing..."
+  # We are either on a non-main branch or tagged with a tag that does
+  # not start with v*. We run the script for testing but do not upload.
+  dest_dir="release"
+  echo "Not a main branch, not tagged with v*, using dest_dir=${dest_dir} for testing..."
 fi
 
 lfortran_version=$(<version)
 
 mkdir ~/.ssh
 chmod 700 ~/.ssh
-ssh-keyscan github.com >> ~/.ssh/known_hosts
+ssh-keyscan github.com >>~/.ssh/known_hosts
 
 eval "$(ssh-agent -s)"
 
-D=`pwd`
+D=$(pwd)
 
 mkdir $HOME/repos
 cd $HOME/repos
@@ -45,7 +45,7 @@ cp $D/src/bin/lfortran.js ${dest_dir}/${git_hash}/lfortran.js
 cp $D/src/bin/lfortran.wasm ${dest_dir}/${git_hash}/lfortran.wasm
 cp $D/src/bin/lfortran.data ${dest_dir}/${git_hash}/lfortran.data
 
-echo "$git_hash" > ${dest_dir}/latest_commit # overwrite the file instead of appending to it
+echo "$git_hash" >${dest_dir}/latest_commit # overwrite the file instead of appending to it
 python $D/ci/wasm_builds_update_json.py ${dest_dir} ${lfortran_version} ${git_hash}
 
 # Move back to wasm_builds/ directory to perform git operations
@@ -59,7 +59,7 @@ rm -rf .git
 
 git init -b main
 git config user.name "Deploy"
-git config user.email "noreply@deploylfortran.com"
+git config user.email "noreply@deploylfortran_tests.com"
 
 COMMIT_MESSAGE="Deploy ${dest_dir} build ${git_hash} on $(date "+%Y-%m-%d %H:%M:%S")"
 
@@ -70,22 +70,22 @@ git show HEAD -p --stat
 dest_commit=$(git show HEAD -s --format=%H)
 
 if [[ ${git_ref} == "refs/heads/main" ]]; then
-    echo "The pipeline was triggered from the main branch"
+  echo "The pipeline was triggered from the main branch"
 else
-    if [[ ${git_ref:0:11} == "refs/tags/v" ]]; then
-        echo "The pipeline was triggered from a tag 'v*'"
-    else
-        # We are either on a non-main branch, or tagged with a tag that does
-        # not start with v*. We skip the upload.
-        echo "Not a main branch, not tagged with v*, skipping..."
-        exit 0
-    fi
+  if [[ ${git_ref:0:11} == "refs/tags/v" ]]; then
+    echo "The pipeline was triggered from a tag 'v*'"
+  else
+    # We are either on a non-main branch, or tagged with a tag that does
+    # not start with v*. We skip the upload.
+    echo "Not a main branch, not tagged with v*, skipping..."
+    exit 0
+  fi
 fi
 
 set +x
 if [[ "${SSH_PRIVATE_KEY_WASM_BUILDS}" == "" ]]; then
-    echo "Note: SSH_PRIVATE_KEY_WASM_BUILDS is empty, skipping..."
-    exit 0
+  echo "Note: SSH_PRIVATE_KEY_WASM_BUILDS is empty, skipping..."
+  exit 0
 fi
 
 ssh-add <(echo "$SSH_PRIVATE_KEY_WASM_BUILDS" | base64 -d)
@@ -95,4 +95,4 @@ set -x
 # This keeps the repository at exactly one reachable commit
 git push --force ${deploy_repo_push} main:main
 echo "New orphaned commit force-pushed at:"
-echo "https://github.com/lfortran/wasm_builds/commit/${dest_commit}"
+echo "https://github.com/hydrolg/lfortran/wasm_builds/commit/${dest_commit}"
