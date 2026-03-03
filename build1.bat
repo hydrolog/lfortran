@@ -13,7 +13,7 @@ cmake -S %cd% -B %cd% -G Ninja ^
  -DWITH_RUNTIME_STACKTRACE=no ^
  -DCMAKE_PREFIX_PATH="%CONDA_PREFIX%" ^
  -DCMAKE_INSTALL_PREFIX="%CONDA_PREFIX%\Library" ^
- -DCMAKE_EXPORT_COMPILE_COMMANDS=yes
+ -DCMAKE_EXPORT_COMPILE_COMMANDS=yes ^
  -DWITH_TARGET_X86=no
  cmake --build %cd% --target install
 
