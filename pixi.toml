@@ -11,8 +11,14 @@ platforms = ["linux-64", "win-64", "linux-aarch64"]
 start = {cmd = "pixi shell -e llvm21 && lfortran"}
 clean = "git clean -dfx -e '.pixi'"
 
+[activation.env]
+CC = "clang"
+CXX = "clang++"
+INSTALL_DIR = "$CONDA_PREFIX"
+BUILD_DIR = "build"
+
 [feature.test.tasks]
-ctest = "cmake --build . --parallel --target test"
+ctest = "cmake --build bld-debug --parallel --target test"
 tests = {cmd = "./run_tests.py" }
 integration_tests = { cmd = "./run_tests.py -j16 -b llvm --ninja", cwd = "integration_tests" }
 
@@ -46,12 +52,16 @@ llvmdev = ">=17.0.6,<18"
 llvmdev = ">=18.1.8,<19"
 [feature.llvm19.dependencies]
 llvmdev = ">=19.1.4,<20"
-clang = ">=19.1.4,<20"
+clang = "==19.1.7"
+clangxx = "==19.1.7"
+shell = ">=0.2.0,<0.3"
 [feature.llvm20.dependencies]
 llvmdev = ">=20.1.8,<21"
 [feature.llvm21.dependencies]
 llvmdev = ">=21.1.2,<22"
-clang = ">=21.1.2,<22"
+clang = "==21.1.8"
+clangxx = "==21.1.8"
+shell = ">=0.2.0,<0.3"
 
 [feature.llvm12.target.linux-64.dependencies]
 libunwind = ">=1.8.3,<2"
@@ -124,15 +134,15 @@ re2c = ">=4.4,<5"
 # Dependencies to build the project to be installed on the build machine.
 # feature.default.dependencies
 [dependencies]
-python = ">=3.12.0,<3.13"
-c-compiler = ">=1.11.0,<2"
-cxx-compiler = ">=1.11.0,<2"
+python = ">=3.12,<3.15"
+#c-compiler = ">=1.11.0,<2"
+#cxx-compiler = ">=1.11.0,<2"
 toml = ">=0.10.2,<0.11"
 pandoc = ">=3.9,<4"
 ninja = ">=1.13.2,<2"
 
 [feature.test.dependencies]
-python = ">=3.12,<3.14"
+python = ">=3.12,<3.15"
 toml = ">=0.10.2,<0.11"
 cmake = ">=3.29,<5"
 ninja = ">=1.13.2,<2"
@@ -160,7 +170,7 @@ build = { cmd = "cmd /k build.bat", cwd = ".", depends-on = "clean" }
 build = { cmd = "./build0.sh && ./build1.sh", cwd = ".", depends-on = "clean" }
 install-llvm21 = { cmd = "pixi install -e llvm21 && pixi shell -e llvm21"}
 install-llvm19 = { cmd = "pixi install -e llvm19 && pixi shell -e llvm19"}
-install = { cmd = "cmake --install .", cwd = "." }
+install = { cmd = "cmake --install bld-debug"}
 integration_tests = { cmd = "./run_tests.py -j16 -b llvm --ninja", cwd = "integration_tests" }
 
 [environments]
