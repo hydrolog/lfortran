@@ -17,14 +17,7 @@ CXX = "clang++"
 INSTALL_DIR = "$CONDA_PREFIX"
 BUILD_DIR = "build"
 
-[activation.env]
-CC = "clang"
-CXX = "clang++"
-INSTALL_DIR = "$CONDA_PREFIX"
-BUILD_DIR = "build"
-
 [feature.test.tasks]
-ctest = "cmake --build $BUILD_DIR --parallel --target test"
 ctest = "cmake --build $BUILD_DIR --parallel --target test"
 
 [feature.llvm7.target.linux-64.dependencies]
@@ -64,9 +57,6 @@ shell = ">=0.2.0,<0.3"
 llvmdev = ">=20.1.8,<21"
 [feature.llvm21.dependencies]
 llvmdev = ">=21.1.2,<22"
-clang = "==21.1.8"
-clangxx = "==21.1.8"
-shell = ">=0.2.0,<0.3"
 clang = "==21.1.8"
 clangxx = "==21.1.8"
 shell = ">=0.2.0,<0.3"
@@ -148,7 +138,6 @@ pandoc = ">=3.9,<4"
 ninja = ">=1.13.2,<2"
 
 [feature.test.dependencies]
-python = ">=3.12,<3.15"
 python = ">=3.12,<3.15"
 toml = ">=0.10.2,<0.11"
 cmake = ">=3.29,<5"
