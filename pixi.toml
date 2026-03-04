@@ -169,7 +169,7 @@ install-llvm19 = { cmd = "pixi install -e llvm19 && pixi shell -e llvm19"}
 install = { cmd = "cmake --install $BUILD_DIR"}
 integration_tests = { cmd = "./run_tests.py -j16 -b llvm --ninja", cwd = "integration_tests" }
 tests = { cmd = "./run_tests.py", cwd = "." }
-ci = { cmd = "./build.sh" , cwd = "ci/", depends-on = "clean" }
+ci = { cmd = "./ci/build.sh" , cwd = ".", depends-on = "clean" }
 
 [environments]
 llvm7 = {features = ["llvm7", "build"]}
