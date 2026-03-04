@@ -3074,6 +3074,29 @@ class ExprDependentOnlyOnArguments: public ASR::BaseWalkVisitor<ExprDependentOnl
         }
 };
 
+class ExprReferencesSymbolVisitor:
+    public ASR::BaseWalkVisitor<ExprReferencesSymbolVisitor> {
+public:
+    ASR::symbol_t* target_sym;
+    bool found;
+
+    ExprReferencesSymbolVisitor(ASR::symbol_t* sym) :
+        target_sym(sym), found(false) {}
+
+    void visit_Var(const ASR::Var_t& x) {
+        if (x.m_v == target_sym) {
+            found = true;
+        }
+    }
+};
+
+static inline bool expr_references_symbol(ASR::expr_t* expr, ASR::symbol_t* sym) {
+    if (!expr) return false;
+    ExprReferencesSymbolVisitor visitor(sym);
+    visitor.visit_expr(*expr);
+    return visitor.found;
+}
+
 // This replacer is used for replacing FunctionParam in expressions by the arguments which are passed in.
 // To be used when creating FunctionCall or SubroutineCall.
 class ReplaceFunctionParamWithArg: public ASR::BaseExprReplacer<ReplaceFunctionParamWithArg> {
@@ -7495,11 +7518,10 @@ static inline ASR::asr_t* make_IntrinsicElementalFunction_t_util(
         if( ASRUtils::is_array(arg_type) ) {
             a_args[i] = cast_to_descriptor(al, arg);
             if( !ASRUtils::is_array(a_type) ) {
-                ASR::ttype_t* underlying_type = ASRUtils::extract_type(arg_type);
                 ASR::Array_t* e = ASR::down_cast<ASR::Array_t>(
                     ASRUtils::type_get_past_allocatable(
                         ASRUtils::type_get_past_pointer(arg_type)));
-                a_type = TYPE(ASR::make_Array_t(al, a_type->base.loc, underlying_type,
+                a_type = TYPE(ASR::make_Array_t(al, a_type->base.loc, a_type,
                                     e->m_dims, e->n_dims, e->m_physical_type));
             }
         }
