@@ -10,6 +10,7 @@ platforms = ["linux-64", "win-64", "linux-aarch64"]
 [tasks]
 start = {cmd = "pixi shell -e llvm21 && lfortran"}
 clean = "git clean -dfx -e '.pixi'"
+lfnb = {cmd = "pixi shell -e llvm21 && jupyter-lab"}
 
 [activation.env]
 CC = "clang"
@@ -20,34 +21,6 @@ BUILD_DIR = "build"
 [feature.test.tasks]
 ctest = "cmake --build $BUILD_DIR --parallel --target test"
 
-[feature.llvm7.target.linux-64.dependencies]
-llvmdev = ">=7.0.1,<8"
-[feature.llvm7.target.win-64.dependencies]
-llvmdev = ">=7.0.1,<8"
-[feature.llvm8.target.linux-64.dependencies]
-llvmdev = ">=8.0.1,<9"
-[feature.llvm8.target.win-64.dependencies]
-llvmdev = ">=8.0.1,<9"
-[feature.llvm9.dependencies]
-llvmdev = ">=9.0.1,<10"
-[feature.llvm10.dependencies]
-llvmdev = ">=10.0.1,<11"
-[feature.llvm11.dependencies]
-llvmdev = ">=11.1.0,<12"
-[feature.llvm12.dependencies]
-llvmdev = ">=12.0.1,<13"
-[feature.llvm13.dependencies]
-llvmdev = ">=13.0.1,<14"
-[feature.llvm14.dependencies]
-llvmdev = ">=14.0.6,<15"
-[feature.llvm15.dependencies]
-llvmdev = ">=15.0.7,<16"
-[feature.llvm16.dependencies]
-llvmdev = ">=16.0.6,<17"
-[feature.llvm17.dependencies]
-llvmdev = ">=17.0.6,<18"
-[feature.llvm18.dependencies]
-llvmdev = ">=18.1.8,<19"
 [feature.llvm19.dependencies]
 llvmdev = ">=19.1.4,<20"
 clang = "==19.1.7"
@@ -60,41 +33,6 @@ llvmdev = ">=21.1.2,<22"
 clang = "==21.1.8"
 clangxx = "==21.1.8"
 shell = ">=0.2.0,<0.3"
-
-[feature.llvm12.target.linux-64.dependencies]
-libunwind = ">=1.8.3,<2"
-[feature.llvm12.target.linux-aarch64.dependencies]
-libunwind = ">=1.8.3,<2"
-
-[feature.llvm13.target.linux-64.dependencies]
-libunwind = ">=1.8.3,<2"
-[feature.llvm13.target.linux-aarch64.dependencies]
-libunwind = ">=1.8.3,<2"
-
-[feature.llvm14.target.linux-64.dependencies]
-libunwind = ">=1.8.3,<2"
-[feature.llvm14.target.linux-aarch64.dependencies]
-libunwind = ">=1.8.3,<2"
-
-[feature.llvm15.target.linux-64.dependencies]
-libunwind = ">=1.8.3,<2"
-[feature.llvm15.target.linux-aarch64.dependencies]
-libunwind = ">=1.8.3,<2"
-
-[feature.llvm16.target.linux-64.dependencies]
-libunwind = ">=1.8.3,<2"
-[feature.llvm16.target.linux-aarch64.dependencies]
-libunwind = ">=1.8.3,<2"
-
-[feature.llvm17.target.linux-64.dependencies]
-libunwind = ">=1.8.3,<2"
-[feature.llvm17.target.linux-aarch64.dependencies]
-libunwind = ">=1.8.3,<2"
-
-[feature.llvm18.target.linux-64.dependencies]
-libunwind = ">=1.8.3,<2"
-[feature.llvm18.target.linux-aarch64.dependencies]
-libunwind = ">=1.8.3,<2"
 
 [feature.llvm19.target.linux-64.dependencies]
 libunwind = ">=1.8.3,<2"
@@ -111,8 +49,6 @@ libunwind = ">=1.8.3,<2"
 [feature.llvm21.target.linux-aarch64.dependencies]
 libunwind = ">=1.8.3,<2"
 
-# Dependencies to build the project to be installed for the target architecture.
-# host == target
 [feature.build.dependencies]
 pytest = ">=9.0.2,<10"
 jupyter = ">=1.1.1,<2"
@@ -122,15 +58,13 @@ nlohmann_json = ">=3.12.0,<4"
 jupyter_kernel_test = ">=0.7.0,<0.8"
 numpy = ">=2.4.2,<3"
 rapidjson = ">=1.1.0.post20240409,<2"
-zlib = "*"
+zlib = ">=1.2.13,<2"
 zstd-static = ">=1.5.6,<2"
 python = ">=3.12,<3.13"
 cmake = ">=3.29,<5"
 ninja = ">=1.13.2,<2"
 re2c = ">=4.4,<5"
 
-# Dependencies to build the project to be installed on the build machine.
-# feature.default.dependencies
 [dependencies]
 python = ">=3.12,<3.15"
 toml = ">=0.10.2,<0.11"
@@ -164,26 +98,15 @@ build = { cmd = "cmd /k build.bat", cwd = ".", depends-on = "clean" }
 
 [feature.build.tasks]
 build = { cmd = "./build0.sh && ./build1.sh", cwd = ".", depends-on = "clean" }
-install-llvm21 = { cmd = "pixi install -e llvm21 && pixi shell -e llvm21"}
-install-llvm19 = { cmd = "pixi install -e llvm19 && pixi shell -e llvm19"}
+sh-llvm21 = { cmd = "pixi install -e llvm21 && pixi shell -e llvm21"}
+sh-llvm20 = { cmd = "pixi install -e llvm20 && pixi shell -e llvm20"}
+sh-llvm19 = { cmd = "pixi install -e llvm19 && pixi shell -e llvm19"}
 install = { cmd = "cmake --install $BUILD_DIR"}
-integration_tests = { cmd = "./run_tests.py -j16 -b llvm --ninja", cwd = "integration_tests" }
+integration_tests = { cmd = "./run_tests.py -j16 -b llvm --ninja", cwd = "integration_tests", depends-on = "install" }
 tests = { cmd = "./run_tests.py", cwd = "." }
 ci = { cmd = "./ci/build.sh" , cwd = ".", depends-on = "clean" }
 
 [environments]
-llvm7 = {features = ["llvm7", "build"]}
-llvm8 = {features = ["llvm8", "build"]}
-llvm9 = {features = ["llvm9", "build"]}
-llvm10 = {features = ["llvm10", "build"]}
-llvm11 = {features = ["llvm11", "build"]}
-llvm12 = {features = ["llvm12", "build"]}
-llvm13 = {features = ["llvm13", "build"]}
-llvm14 = {features = ["llvm14", "build"]}
-llvm15 = {features = ["llvm15", "build"]}
-llvm16 = {features = ["llvm16", "build"]}
-llvm17 = {features = ["llvm17", "build"]}
-llvm18 = {features = ["llvm18", "build"]}
 llvm19 = {features = ["llvm19", "build"]}
 llvm20 = {features = ["llvm20", "build"]}
 llvm21 = {features = ["llvm21", "build"]}
