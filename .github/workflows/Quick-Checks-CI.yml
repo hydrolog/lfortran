@@ -3,17 +3,17 @@ name: Quick checks
 on:
    workflow_dispatch:
      branches:
-       - pixi_envfix
+       - isoc_bind
      tags:
        - 'v*'
  # push:
  #   branches:
-#      - pixi_envfix
+#      - isoc_bind
  #   tags:
 #      - 'v*'
 #  pull_request:
 #    branches:
-#      - pixi_envfix
+#      - isoc_bind
  
 
 # For a PR #7488 against main branch, the `group` will become: CI-{{ 7488 || github.sha }}
