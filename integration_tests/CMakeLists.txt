@@ -2593,6 +2593,7 @@ RUN(NAME test_ieee_unordered LABELS gfortran llvm llvm_wasm llvm_wasm_emcc NO_FA
 RUN(NAME test_ieee_support LABELS gfortran llvm llvm_wasm llvm_wasm_emcc NO_FAST)
 RUN(NAME test_ieee_infnan LABELS gfortran llvm llvm_wasm llvm_wasm_emcc NO_FAST)
 RUN(NAME test_format_inf_nan LABELS gfortran llvm)
+RUN(NAME test_ieee_underflow_mode LABELS gfortran llvm llvm_wasm llvm_wasm_emcc)
 
 RUN(NAME abs_01 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc wasm c fortran mlir)
 RUN(NAME abs_02 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc wasm fortran)
@@ -2836,6 +2837,7 @@ RUN(NAME read_46 LABELS gfortran llvm)
 RUN(NAME read_47 LABELS gfortran llvm)
 RUN(NAME read_48 LABELS gfortran llvm)
 RUN(NAME read_49 LABELS gfortran llvm)
+RUN(NAME read_50 LABELS gfortran llvm)
 
 RUN(NAME write_01 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc fortran)
 RUN(NAME write_02 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc fortran)
@@ -2942,6 +2944,8 @@ RUN(NAME procedure_38 LABELS gfortran llvm)
 RUN(NAME procedure_39 LABELS gfortran llvm)
 RUN(NAME procedure_40 LABELS gfortran llvm)
 RUN(NAME procedure_41 LABELS gfortran llvm)
+
+RUN(NAME procedure_43 LABELS gfortran llvm EXTRAFILES procedure_43_module.f90 EXTRA_ARGS --separate-compilation)
 
 RUN(NAME allocated_01 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc)
 RUN(NAME allocated_02 LABELS gfortran llvm llvm_wasm llvm_wasm_emcc)
