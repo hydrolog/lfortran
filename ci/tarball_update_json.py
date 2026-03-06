@@ -13,7 +13,7 @@ if os.path.exists(filename):
 else:
     d = {"dev": [], "release": []}
 entry = {
-    "url": "https://lfortran.github.io/tarballs/%s/lfortran-%s.tar.gz" % \
+    "url": "https://hydrolog.github.io/tarballs/%s/lfortran-%s.tar.gz" % \
             (dest_dir, version),
     "version": version,
     "lfortran_commit_sha": lfortran_commit_sha,

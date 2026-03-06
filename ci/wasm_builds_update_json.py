@@ -20,7 +20,7 @@ else:
 
 # Add new entry
 entry = {
-    "url": "https://lfortran.github.io/wasm_builds/%s/%s" % \
+    "url": "https://hydrolog.github.io/lfortran-wasm_builds/%s/%s" % \
             (dest_dir, lfortran_commit_sha),
     "version": version,
     "lfortran_commit_sha": lfortran_commit_sha,

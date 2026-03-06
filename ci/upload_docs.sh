@@ -11,7 +11,7 @@ if [[ $git_ref != "refs/heads/main" ]]; then
   deploy_repo="git@gitlab.com:hydrolog/lfortran/web/docs.lfortran.org-testing.git"
 else
   # Release version
-  dest_branch="master"
+  dest_branch="main"
   deploy_repo="git@github.com:hydrolog/lfortran/docs.lfortran.org.git"
 fi
 

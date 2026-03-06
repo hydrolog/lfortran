@@ -3,11 +3,11 @@
 set -e
 set -x
 
-if [[ $CI_COMMIT_REF_NAME != "master" ]]; then
+if [[ $CI_COMMIT_REF_NAME != "main" ]]; then
     echo "Not on master, skipping mirroring"
     exit 0
 else
-    echo "On master, mirroring to GitHub"
+    echo "On main, mirroring to GitHub"
 fi
 
 mkdir ~/.ssh
@@ -39,4 +39,4 @@ set -x
 pwd
 git show-ref
 git remote -v
-git push git@github.com:lfortran/lfortran.git +origin/master:master --tags
+git push git@github.com:hydrolog/lfortran.git +origin/main:main --tags
