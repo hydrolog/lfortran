@@ -3,8 +3,8 @@
 set -e
 set -x
 
-deploy_repo_pull="https://github.com/hydrolog/lfortran/wasm_builds.git"
-deploy_repo_push="git@github.com:/hydrolog/lfortran/wasm_builds.git"
+deploy_repo_pull="https://github.com/hydrolog/lfortran-wasm_builds.git"
+deploy_repo_push="git@github.com:/hydrolog/lfortran-wasm_builds.git"
 
 git_hash=$(git rev-parse --short "$GITHUB_SHA")
 git_ref=${GITHUB_REF}
@@ -38,9 +38,9 @@ D=$(pwd)
 mkdir $HOME/repos
 cd $HOME/repos
 
-git clone ${deploy_repo_pull} wasm_builds
-mkdir -p wasm_builds/docs/${dest_dir}/${git_hash}
-cd wasm_builds/docs
+git clone ${deploy_repo_pull} lfortran-wasm_builds
+mkdir -p lfortran-wasm_builds/docs/${dest_dir}/${git_hash}
+cd lfortran-wasm_builds/docs
 cp $D/src/bin/lfortran.js ${dest_dir}/${git_hash}/lfortran.js
 cp $D/src/bin/lfortran.wasm ${dest_dir}/${git_hash}/lfortran.wasm
 cp $D/src/bin/lfortran.data ${dest_dir}/${git_hash}/lfortran.data
@@ -95,4 +95,5 @@ set -x
 # This keeps the repository at exactly one reachable commit
 git push --force ${deploy_repo_push} main:main
 echo "New orphaned commit force-pushed at:"
-echo "https://github.com/hydrolg/lfortran/wasm_builds/commit/${dest_commit}"
+echo "https://github.com/hydrolog/lfortran-wasm_builds/commit/${dest_commit}"
+
