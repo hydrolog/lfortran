@@ -19,24 +19,24 @@ export ENABLE_RUNTIME_STACKTRACE=yes
 export BUILD_TYPE="Debug"
 
 cmake \
-    -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
-    -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-    -DWITH_LLVM=yes \
-    -DLFORTRAN_BUILD_ALL=yes \
-    -DWITH_STACKTRACE=yes \
-    -DWITH_RUNTIME_STACKTRACE=yes \
-    -DWITH_LSP=yes \
-    -DWITH_INTERNAL_ALLOC_CHECK=yes \
-    -DUSE_DYNAMIC_ZSTD=no \
-    -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
-    -DCMAKE_INSTALL_LIBDIR="$CONDA_PREFIX/lib" \
-    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-    -DCMAKE_C_FLAGS="${CFLAGS} -fdiagnostics-color=always" \
-    -DCMAKE_CXX_FLAGS="${CXXFLAGS} -fdiagnostics-color=always" \
-    -G $LFORTRAN_CMAKE_GENERATOR \
-    -B build_${BUILD_TYPE,}    
+  -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
+  -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+  -DWITH_LLVM=yes \
+  -DWITH_XEUS=yes \
+  -DLFORTRAN_BUILD_ALL=yes \
+  -DWITH_STACKTRACE=yes \
+  -DWITH_RUNTIME_STACKTRACE=yes \
+  -DWITH_LSP=yes \
+  -DWITH_INTERNAL_ALLOC_CHECK=yes \
+  -DUSE_DYNAMIC_ZSTD=no \
+  -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
+  -DCMAKE_INSTALL_LIBDIR="$CONDA_PREFIX/lib" \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+  -DCMAKE_C_FLAGS="${CFLAGS} -fdiagnostics-color=always" \
+  -DCMAKE_CXX_FLAGS="${CXXFLAGS} -fdiagnostics-color=always" \
+  -G $LFORTRAN_CMAKE_GENERATOR \
+  -B build_${BUILD_TYPE,}
 
-cmake --build build_${BUILD_TYPE,} --target install 
+cmake --build build_${BUILD_TYPE,} --target install
 
 #cmake --install build_${BUILD_TYPE,} --prefix "$CONDA_PREFIX"
-
