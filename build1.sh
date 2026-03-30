@@ -3,20 +3,40 @@
 set -e
 set -x
 
+export CC="clang"
+export CXX="clang++"
+export CFLAGS="-I$CONDA_PREFIX/include"
+export CXXFLAGS="-I$CONDA_PREFIX/include"
+export CMAKE_PREFIX_PATH="$CONDA_PREFIX"
+export LFORTRAN_LLVM_DIR="$CONDA_PREFIX"
+export LFORTRAN_LLVM_CONFIG="$CONDA_PREFIX/bin/llvm-config"
+export LFORTRAN_LLVM_LIB_DIR="$CONDA_PREFIX/lib"
+export LFORTRAN_LLVM_INCLUDE_DIR="$CONDA_PREFIX/include"
+export LFORTRAN_LLVM_BIN_DIR="$CONDA_PREFIX/bin"
+export LFORTRAN_LLVM_VERSION="22.1.2"
+export LFORTRAN_CMAKE_GENERATOR=Ninja
+export ENABLE_RUNTIME_STACKTRACE=yes
+export BUILD_TYPE="Debug"
+
 cmake \
-    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
+    -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
     -DWITH_LLVM=yes \
     -DLFORTRAN_BUILD_ALL=yes \
     -DWITH_STACKTRACE=yes \
     -DWITH_RUNTIME_STACKTRACE=yes \
-    -DWITH_LSP=no \
+    -DWITH_LSP=yes \
     -DWITH_INTERNAL_ALLOC_CHECK=yes \
     -DUSE_DYNAMIC_ZSTD=no \
-    -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH_LFORTRAN;$CONDA_PREFIX" \
-    -DCMAKE_INSTALL_LIBDIR=share/lfortran/lib \
+    -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
+    -DCMAKE_INSTALL_LIBDIR="$CONDA_PREFIX/lib" \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
     -DCMAKE_C_FLAGS="${CFLAGS} -fdiagnostics-color=always" \
     -DCMAKE_CXX_FLAGS="${CXXFLAGS} -fdiagnostics-color=always" \
-    -G Ninja \
-    .
-cmake --build .
+    -G $LFORTRAN_CMAKE_GENERATOR \
+    -B build_${BUILD_TYPE,}    
+
+cmake --build build_${BUILD_TYPE,} --target install 
+
+#cmake --install build_${BUILD_TYPE,} --prefix "$CONDA_PREFIX"
+
