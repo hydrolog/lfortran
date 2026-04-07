@@ -43,6 +43,7 @@
 #include <libasr/pass/dead_code_removal.h>
 #include <libasr/pass/replace_sign_from_value.h>
 #include <libasr/pass/unique_symbols.h>
+#include <libasr/codegen/asr_to_metal.h>
 #include <libasr/asr_utils.h>
 #include <libasr/asr_verify.h>
 #include <libasr/modfile.h>
@@ -974,6 +975,20 @@ int dump_all_passes(const std::string &infile, CompilerOptions &compiler_options
         compiler_options.po.run_fun = "f";
         pass_manager.dump_all_passes(al, asr.result, compiler_options.po, diagnostics, lm);
         std::cerr << diagnostics.render(lm, compiler_options);
+
+        if (compiler_options.gpu_backend == "metal") {
+            LCompilers::diag::Diagnostics metal_diag;
+            LCompilers::Result<std::string> metal_res =
+                LCompilers::asr_to_metal(al, *asr.result, metal_diag, compiler_options);
+            if (metal_res.ok) {
+                std::ofstream outfile("pass_metal_codegen.metal");
+                outfile << metal_res.result << "\n";
+                outfile.close();
+            } else {
+                std::cerr << metal_diag.render(lm, compiler_options);
+                std::cerr << "Metal code generation failed.\n";
+            }
+        }
     } else {
         LCOMPILERS_ASSERT(diagnostics.has_error())
         return 1;
@@ -1245,6 +1260,7 @@ int compile_src_to_object_file(const std::string &infile,
         return 1;
 #endif
     }
+
     LCompilers::Result<std::unique_ptr<LCompilers::LLVMModule>>
         res = fe.get_llvm3(*asr, lpm, diagnostics, lm, infile, &time_opt);
     std::cerr << diagnostics.render(lm, compiler_options);
@@ -2029,6 +2045,24 @@ int link_executable(const std::vector<std::string> &infiles,
                 if (!openmp_shared_library.empty()) {
                     compile_cmd += omp_cmd;
                 }
+            }
+            if (compiler_options.gpu_backend == "metal") {
+                // Compile the Metal runtime and link it
+                std::string metal_runtime_src = runtime_library_dir
+                    + "/../libasr/runtime/lfortran_gpu_metal.m";
+                std::string metal_runtime_obj = LFORTRAN_TEMP_DIR
+                    + "/lfortran_gpu_metal_" + LCOMPILERS_UNIQUE_ID + ".o";
+                std::string metal_compile_cmd = "clang -c -O2 -fobjc-arc"
+                    " -o " + metal_runtime_obj
+                    + " " + metal_runtime_src;
+                int metal_err = system(metal_compile_cmd.c_str());
+                if (metal_err) {
+                    std::cerr << "Failed to compile Metal runtime: "
+                        << metal_compile_cmd << std::endl;
+                    return 10;
+                }
+                compile_cmd += " " + metal_runtime_obj
+                    + " -framework Metal -framework Foundation";
             }
             run_cmd = "./" + outfile;
         }
