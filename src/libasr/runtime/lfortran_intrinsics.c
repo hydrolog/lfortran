@@ -5687,7 +5687,7 @@ _lfortran_open(int32_t unit_num,
         (const fchar*)f_name, f_name_len, file_exists, -1, NULL, NULL, NULL,
         NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL,
         NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, NULL, 0, NULL, 0, NULL, 0,
-        NULL, 0, NULL, 0, NULL, 0, NULL, 0);
+        NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, 0);
     char* access_mode = NULL;
     /*
      STATUS=`specifier` in the OPEN statement
@@ -5955,9 +5955,17 @@ _lfortran_open(int32_t unit_num,
     return 0;
 }
 
-LFORTRAN_API void _lfortran_flush(int32_t unit_num)
+LFORTRAN_API void _lfortran_flush(int32_t unit_num, int32_t* iostat, char* iomsg, int64_t iomsg_len) 
 {
     // special case: flush all open units
+    if (iostat != NULL) {
+        *iostat = 0;
+    }
+    if (iomsg != NULL && iomsg_len > 0) {
+        // Clear iomsg on entry
+        iomsg[0] = '\0';
+        pad_with_spaces(iomsg, 0, iomsg_len);
+    }
     if (unit_num == -1) {
         for (int i = 0; i <= last_index_used; i++) {
             if (unit_to_file[i].filep != NULL) {
@@ -5981,8 +5989,17 @@ LFORTRAN_API void _lfortran_flush(int32_t unit_num)
                 fflush(stderr);
                 return;
             }
-            printf("Specified UNIT %d in FLUSH is not connected.\n", unit_num);
-            exit(1);
+            if (iostat != NULL) {
+                *iostat = -5005;
+                if (iomsg != NULL && iomsg_len > 0) {
+                    char *msg = "Specified UNIT is not connected.";
+                    _lfortran_copy_str_and_pad(iomsg, iomsg_len, msg, strlen(msg));
+                }
+                return;
+            } else {
+                printf("Specified UNIT %d in FLUSH is not connected.\n", unit_num);
+                exit(1);
+            }
         }
         fflush(filep);
     }
@@ -6057,7 +6074,9 @@ LFORTRAN_API void _lfortran_inquire(const fchar* f_name_data, int64_t f_name_len
                                     char *stream, int64_t stream_len,
                                     char *iomsg, int64_t iomsg_len,
                                     char *round, int64_t round_len,
-                                    char *pad, int64_t pad_len) {
+                                    char *pad, int64_t pad_len,
+                                    bool *pending,
+                                    char *asynchronous, int64_t asynchronous_len) {
     if (f_name_data && unit_num != -1) {
         if (iostat != NULL) {
             *iostat = 1;
@@ -6299,6 +6318,12 @@ LFORTRAN_API void _lfortran_inquire(const fchar* f_name_data, int64_t f_name_len
                 }
             }
         }
+        if (pending != NULL) {
+            *pending = false;
+        }
+        if (asynchronous != NULL) {
+            _lfortran_copy_str_and_pad(asynchronous, asynchronous_len, "NO", 2);
+        }
         if (iostat != NULL) {
             *iostat = 0;
             // iomsg is left unchanged on success per Fortran standard
@@ -6524,6 +6549,12 @@ LFORTRAN_API void _lfortran_inquire(const fchar* f_name_data, int64_t f_name_len
                     _lfortran_copy_str_and_pad(round, round_len, "PROCESSOR_DEFINED", 17);
                 }
             }
+        }
+        if (pending != NULL) {
+            *pending = false;
+        }
+        if (asynchronous != NULL) {
+            _lfortran_copy_str_and_pad(asynchronous, asynchronous_len, "NO", 2);
         }
         if (iostat != NULL) {
             *iostat = 0;
@@ -9840,7 +9871,7 @@ static int _lfortran_skip_comma(char *buf, int *skip, int64_t off, int64_t *offs
             if (iostat) *iostat = 0;
             return 1;
         }
-        (*skip)++;
+        *skip = look;
     }
     return 0;
 }
@@ -11086,7 +11117,7 @@ LFORTRAN_API int _lfortran_exec_command(fchar *cmd, int64_t len) {
     char *c_cmd = internal_malloc(sizeof(char) * (len + 1));
 
     copy_fchar_to_char(cmd, len, c_cmd);
-    _lfortran_flush(-1);
+    _lfortran_flush(-1, NULL, NULL, 0);
 
     int result = system(c_cmd);
     internal_free(c_cmd);
